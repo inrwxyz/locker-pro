@@ -15,6 +15,7 @@ using System.Windows.Markup;
 using System.Windows.Media;
 using System.Windows.Threading;
 using System.Xml.Linq;
+using AppLocker.Manager.Guard;
 using AppLocker.Core;
 using Microsoft.Win32;
 
@@ -352,6 +353,7 @@ public partial class MainWindow : Window, IComponentConnector, IStyleConnector
 		PickerOverlay.Visibility = Visibility.Collapsed;
 		string appPath = a.Path;
 		AppRegistry.Add(appPath);
+		AppGuard.KillAllProcesses(appPath);
 		Task.Run(() => GuardPipe.Send("relock|" + appPath));
 		InexIslandBridge.NotifyLock(a.Name);
 		LoadList();
@@ -374,6 +376,7 @@ public partial class MainWindow : Window, IComponentConnector, IStyleConnector
 		{
 			PickerOverlay.Visibility = Visibility.Collapsed;
 			AppRegistry.Add(dlg.FileName);
+			AppGuard.KillAllProcesses(dlg.FileName);
 			Task.Run(() => GuardPipe.Send("relock|" + dlg.FileName));
 			InexIslandBridge.NotifyLock(Path.GetFileNameWithoutExtension(dlg.FileName));
 			LoadList();
