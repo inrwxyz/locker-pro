@@ -14,6 +14,7 @@ using System.Windows.Input;
 using System.Windows.Markup;
 using System.Windows.Media;
 using System.Windows.Threading;
+using System.Xml.Linq;
 using AppLocker.Core;
 using Microsoft.Win32;
 
@@ -313,7 +314,7 @@ public partial class MainWindow : Window, IComponentConnector, IStyleConnector
 			AppList.ItemsSource = null;
 			if (_allApps == null)
 			{
-				_allApps = await Task.Run((Func<List<AppItem>>)LoadCleanApps);
+				_allApps = await Task.Run((Func<List<AppItem>>)LoadAllApps);
 			}
 			PickerStatus.Text = $"{_allApps.Count} ta app paowa geche";
 			ApplyAppFilter();
@@ -446,76 +447,130 @@ public partial class MainWindow : Window, IComponentConnector, IStyleConnector
 		return dictionary.Values.OrderBy((AppItem a) => a.Name, StringComparer.OrdinalIgnoreCase).ToList();
 	}
 
+	private static List<AppItem> LoadAllApps()
+	{
+		var clean = LoadCleanApps();
+		var store = LoadStoreApps();
+
+		var dict = new Dictionary<string, AppItem>(StringComparer.OrdinalIgnoreCase);
+		foreach (var a in clean)
+		{
+			dict[a.Path] = a;
+		}
+		foreach (var s in store)
+		{
+			if (!dict.ContainsKey(s.Path))
+			{
+				dict[s.Path] = s;
+			}
+		}
+
+		return dict.Values.OrderBy(a => a.Name, StringComparer.OrdinalIgnoreCase).ToList();
+	}
+
 	private static List<AppItem> LoadStoreApps()
 	{
-		List<AppItem> list = new List<AppItem>();
+		var list = new List<AppItem>();
+		var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
 		try
 		{
-			using Process? process = Process.Start(new ProcessStartInfo("powershell", "-NoProfile -Command \"Get-StartApps | Where-Object { $_.AppID -like '*!*' } | Select-Object Name, AppID | ConvertTo-Csv -NoTypeInformation\"")
+			using var repoKey = Registry.CurrentUser.OpenSubKey(@"Software\Classes\Local Settings\Software\Microsoft\Windows\CurrentVersion\AppModel\Repository\Packages");
+			if (repoKey == null) return list;
+
+			string[] junkWords = { "uninstall", "remove", "reset", "cache", "help", "manual", "documentation", "readme", "license", "updater", "update", "diagnostics" };
+
+			foreach (string pkgName in repoKey.GetSubKeyNames())
 			{
-				CreateNoWindow = true,
-				UseShellExecute = false,
-				RedirectStandardOutput = true
-			});
-			if (process == null)
-			{
-				return list;
-			}
-			string s = process.StandardOutput.ReadToEnd();
-			process.WaitForExit(3000);
-			using StringReader stringReader = new StringReader(s);
-			string? text = stringReader.ReadLine();
-			while ((text = stringReader.ReadLine()) != null)
-			{
-				string[] array = text.Split(',');
-				if (array.Length < 2)
+				try
 				{
-					continue;
-				}
-				string name = array[0].Trim('"');
-				string text2 = array[1].Trim('"');
-				string text3 = (text2.Contains('!') ? text2.Substring(0, text2.IndexOf('!')) : text2);
-				string path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "WindowsApps");
-				if (!Directory.Exists(path))
-				{
-					continue;
-				}
-				foreach (string item in Directory.EnumerateDirectories(path, text3 + "*"))
-				{
-					string path2 = Path.Combine(item, "AppxManifest.xml");
-					if (!File.Exists(path2))
-					{
+					using var pkgKey = repoKey.OpenSubKey(pkgName);
+					if (pkgKey == null) continue;
+
+					string? rootFolder = pkgKey.GetValue("PackageRootFolder") as string;
+					if (string.IsNullOrWhiteSpace(rootFolder) || !Directory.Exists(rootFolder))
 						continue;
-					}
-					string text4 = File.ReadAllText(path2);
-					int num = text4.IndexOf("Executable=\"", StringComparison.OrdinalIgnoreCase);
-					if (num < 0)
-					{
+
+					string manifestPath = Path.Combine(rootFolder, "AppxManifest.xml");
+					if (!File.Exists(manifestPath))
 						continue;
-					}
-					int num2 = num + "Executable=\"".Length;
-					int num3 = text4.IndexOf('"', num2);
-					if (num3 >= 0)
+
+					string? pkgDisplayName = pkgKey.GetValue("DisplayName") as string;
+
+					var doc = XDocument.Load(manifestPath);
+					var ns = doc.Root?.GetDefaultNamespace() ?? XNamespace.None;
+					var appNodes = doc.Descendants(ns + "Application");
+
+					foreach (var app in appNodes)
 					{
-						int num4 = num2;
-						string path3 = text4.Substring(num4, num3 - num4);
-						string path4 = Path.Combine(item, path3);
-						if (File.Exists(path4))
+						string? exeRel = app.Attribute("Executable")?.Value;
+						if (string.IsNullOrWhiteSpace(exeRel)) continue;
+
+						var ve = app.Elements().FirstOrDefault(e => e.Name.LocalName == "VisualElements");
+						string? appListEntry = ve?.Attribute("AppListEntry")?.Value;
+						if (string.Equals(appListEntry, "none", StringComparison.OrdinalIgnoreCase))
+							continue;
+
+						string fullExe = Path.Combine(rootFolder, exeRel);
+						if (!File.Exists(fullExe) || AppRegistry.IsBlocked(fullExe)) continue;
+
+						string name = "";
+						string? veName = ve?.Attribute("DisplayName")?.Value;
+						if (!string.IsNullOrWhiteSpace(veName) && !veName.StartsWith("ms-resource:", StringComparison.OrdinalIgnoreCase))
+						{
+							name = veName;
+						}
+						else if (!string.IsNullOrWhiteSpace(pkgDisplayName) && !pkgDisplayName.StartsWith("ms-resource:", StringComparison.OrdinalIgnoreCase) && !pkgDisplayName.StartsWith("@"))
+						{
+							name = pkgDisplayName;
+						}
+						else
+						{
+							string appId = app.Attribute("Id")?.Value ?? "";
+							if (!string.IsNullOrEmpty(appId))
+							{
+								using var appSubKey = pkgKey.OpenSubKey($@"{appId}\Capabilities");
+								string? capName = appSubKey?.GetValue("ApplicationName") as string;
+								if (!string.IsNullOrWhiteSpace(capName)) name = capName;
+							}
+						}
+
+						if (string.IsNullOrWhiteSpace(name))
+						{
+							name = Path.GetFileNameWithoutExtension(fullExe);
+						}
+
+						if (junkWords.Any(w => name.Contains(w, StringComparison.OrdinalIgnoreCase)))
+							continue;
+
+						// Special case: Spotify has Spotify.exe alongside SpotifyLauncher/Migrator
+						string spotifyExe = Path.Combine(rootFolder, "Spotify.exe");
+						if (pkgName.StartsWith("SpotifyAB.SpotifyMusic", StringComparison.OrdinalIgnoreCase) && File.Exists(spotifyExe) && seen.Add(spotifyExe))
+						{
+							list.Add(new AppItem
+							{
+								Name = "Spotify",
+								Path = spotifyExe,
+								IconSource = AppIconHelper.GetIcon(spotifyExe)
+							});
+						}
+
+						if (seen.Add(fullExe))
 						{
 							list.Add(new AppItem
 							{
 								Name = name,
-								Path = path4
+								Path = fullExe,
+								IconSource = AppIconHelper.GetIcon(fullExe)
 							});
-							break;
 						}
 					}
 				}
+				catch { }
 			}
 		}
-		catch
-		{
-		}
+		catch { }
+
 		return list;
 	}
 
