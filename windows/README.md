@@ -61,7 +61,7 @@ The master key is never written to disk in plaintext.
 ## Install
 
 1. Install the **.NET 10 Desktop Runtime** (x64) if not already installed.
-2. Download `Locker-Setup.exe` from the [Releases](https://github.com/inrwxyzyzyz/locker-pro/releases) page and run it. Windows will prompt for elevation.
+2. Download `Locker-Setup.exe` from the [Releases](https://github.com/inrwxyz/locker-pro/releases) page and run it. Windows will prompt for elevation.
 3. Open Locker Pro, create your Master Password, and **write down the Recovery Key** in a secure location.
 
 ---
@@ -81,7 +81,7 @@ The master key is never written to disk in plaintext.
 Requirements: Windows 10/11, **.NET 10 SDK**, PowerShell 5.1+.
 
 ```powershell
-git clone https://github.com/inrwxyzyzyz/locker-pro.git
+git clone https://github.com/inrwxyz/locker-pro.git
 cd locker-pro\windows
 .\build_package.ps1
 ```

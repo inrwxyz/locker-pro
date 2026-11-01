@@ -47,14 +47,14 @@ If a new fingerprint is enrolled on the phone, Android automatically destroys th
 ## Download
 
 Get the Windows installer (`Locker-Setup.exe`) and the Android companion (`.apk`) from the
-[Releases](https://github.com/inrwxyzyzyz/locker-pro/releases) page.
+[Releases](https://github.com/inrwxyz/locker-pro/releases) page.
 
 ---
 
 ## Build from source
 
 ```powershell
-git clone https://github.com/inrwxyzyzyz/locker-pro.git
+git clone https://github.com/inrwxyz/locker-pro.git
 cd locker-pro
 
 # Windows app (requires .NET 10 SDK)

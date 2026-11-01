@@ -21,7 +21,7 @@ Everything runs over your local Wi-Fi. No cloud, no account, no analytics.
 
 ## Install
 
-Download the APK from the [Releases](https://github.com/inrwxyzyzyz/locker-pro/releases) page, or build it yourself (below). Android may ask you to allow installs from your browser or file manager.
+Download the APK from the [Releases](https://github.com/inrwxyz/locker-pro/releases) page, or build it yourself (below). Android may ask you to allow installs from your browser or file manager.
 
 Permissions used: camera (scan the pairing QR), network and Wi-Fi state (talk to your PC), biometric (fingerprint), notifications and foreground service (receive unlock requests), vibrate.
 
@@ -37,7 +37,7 @@ Permissions used: camera (scan the pairing QR), network and Wi-Fi state (talk to
 Requirements: JDK 17+, Android SDK Platform 35 (Android Studio recommended).
 
 ```powershell
-git clone https://github.com/inrwxyzyzyz/locker-pro.git
+git clone https://github.com/inrwxyz/locker-pro.git
 cd locker-pro\android
 .\gradlew.bat assembleDebug          # APK: app\build\outputs\apk\debug\app-debug.apk
 .\gradlew.bat installDebug           # build and install on a USB-debugging phone

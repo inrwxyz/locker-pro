@@ -966,7 +966,7 @@ private void StartPhonePair_Click(object sender, RoutedEventArgs e)
 	{
 		try
 		{
-			Process.Start(new ProcessStartInfo("https://github.com/inrwxyzyz")
+			Process.Start(new ProcessStartInfo("https://github.com/inrwxyz")
 			{
 				UseShellExecute = true
 			});
