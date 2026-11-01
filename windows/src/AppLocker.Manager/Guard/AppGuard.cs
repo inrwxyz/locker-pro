@@ -320,10 +320,35 @@ public class AppGuard : IDisposable
                 ask = true; // First process of this launch: prompt user
             }
 
-            if (!suspendFailed)
+            if (!suspendFailed && !list.Any(x => x.Id == p.Id))
             {
                 list.Add(p);
             }
+
+            // Also suspend sibling processes if multi-process (e.g. Discord unhiding from tray)
+            try
+            {
+                string procName = Path.GetFileNameWithoutExtension(canon);
+                foreach (var sibling in Process.GetProcessesByName(procName))
+                {
+                    try
+                    {
+                        if (sibling.Id != pid && !list.Any(x => x.Id == sibling.Id))
+                        {
+                            string? sPath = ImagePath(sibling.Id);
+                            if (sPath != null && (sPath.Equals(canon, StringComparison.OrdinalIgnoreCase) || AppRegistry.IsLocked(sPath)))
+                            {
+                                if (Suspend(sibling))
+                                {
+                                    list.Add(sibling);
+                                }
+                            }
+                        }
+                    }
+                    catch { }
+                }
+            }
+            catch { }
         }
 
         if (!ask) return;
@@ -377,6 +402,7 @@ public class AppGuard : IDisposable
                 try { proc.Kill(true); } catch { }
                 finally { proc.Dispose(); }
             }
+            KillAllProcesses(canon);
         }
     }
 
@@ -413,15 +439,24 @@ public class AppGuard : IDisposable
                     {
                         _hadWindow.Add(path);
                     }
-                    else if (!running || _hadWindow.Contains(path))
+                    else if (!running)
                     {
-                        // App bondho hoyeche! (Process exit hoyeche BA app-er shob visible window close hoyeche)
+                        // App-er shob process exit hoyeche
                         _unlocked.Remove(path);
                         _hadWindow.Remove(path);
                         toRelock ??= new List<string>();
                         toRelock.Add(path);
-                        KillAllProcesses(path);
-                        Log($"SWEEP: App closed/windows exited, relocked & cleaned: {path}");
+                        Log($"SWEEP: All processes exited, relocked: {path}");
+                    }
+                    else if (_hadWindow.Contains(path))
+                    {
+                        // App-er visible window close hoyeche kintu background / system tray-te cholche (e.g. Discord, Spotify, Chrome)
+                        // Process kill korbona jate tray icon thake! Shudhu session relock korbo jate porer bar window open korle password chay.
+                        _unlocked.Remove(path);
+                        _hadWindow.Remove(path);
+                        toRelock ??= new List<string>();
+                        toRelock.Add(path);
+                        Log($"SWEEP: Window closed, relocked (preserved in tray/background): {path}");
                     }
                 }
             }

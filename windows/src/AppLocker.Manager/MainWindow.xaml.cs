@@ -471,6 +471,27 @@ public partial class MainWindow : Window, IComponentConnector, IStyleConnector
 		return dict.Values.OrderBy(a => a.Name, StringComparer.OrdinalIgnoreCase).ToList();
 	}
 
+	[DllImport("shlwapi.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+	private static extern int SHLoadIndirectString(string pszSource, StringBuilder pszOutBuf, int cchOutBuf, IntPtr ppvReserved);
+
+	private static string ResolveIndirectString(string? res)
+	{
+		if (string.IsNullOrWhiteSpace(res) || !res.StartsWith("@")) return res ?? "";
+		try
+		{
+			var sb = new StringBuilder(1024);
+			int hr = SHLoadIndirectString(res, sb, sb.Capacity, IntPtr.Zero);
+			if (hr == 0 && sb.Length > 0)
+			{
+				string resolved = sb.ToString().Trim();
+				if (!resolved.StartsWith("@") && !resolved.StartsWith("ms-resource:"))
+					return resolved;
+			}
+		}
+		catch { }
+		return "";
+	}
+
 	private static List<AppItem> LoadStoreApps()
 	{
 		var list = new List<AppItem>();
@@ -519,7 +540,7 @@ public partial class MainWindow : Window, IComponentConnector, IStyleConnector
 
 						string name = "";
 						string? veName = ve?.Attribute("DisplayName")?.Value;
-						if (!string.IsNullOrWhiteSpace(veName) && !veName.StartsWith("ms-resource:", StringComparison.OrdinalIgnoreCase))
+						if (!string.IsNullOrWhiteSpace(veName) && !veName.StartsWith("ms-resource:", StringComparison.OrdinalIgnoreCase) && !veName.StartsWith("@"))
 						{
 							name = veName;
 						}
@@ -534,11 +555,18 @@ public partial class MainWindow : Window, IComponentConnector, IStyleConnector
 							{
 								using var appSubKey = pkgKey.OpenSubKey($@"{appId}\Capabilities");
 								string? capName = appSubKey?.GetValue("ApplicationName") as string;
-								if (!string.IsNullOrWhiteSpace(capName)) name = capName;
+								if (!string.IsNullOrWhiteSpace(capName))
+								{
+									string resolved = ResolveIndirectString(capName);
+									if (!string.IsNullOrWhiteSpace(resolved) && !resolved.StartsWith("@") && !resolved.StartsWith("ms-resource:"))
+									{
+										name = resolved;
+									}
+								}
 							}
 						}
 
-						if (string.IsNullOrWhiteSpace(name))
+						if (string.IsNullOrWhiteSpace(name) || name.StartsWith("@") || name.StartsWith("ms-resource:"))
 						{
 							name = Path.GetFileNameWithoutExtension(fullExe);
 						}
