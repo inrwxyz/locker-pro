@@ -1,0 +1,1253 @@
+using System.Text;
+using System.Runtime.InteropServices;
+using System.Windows.Interop;
+using System.Windows.Media.Imaging;
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
+using System.Linq;
+using System.Threading.Tasks;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Input;
+using System.Windows.Markup;
+using System.Windows.Media;
+using System.Windows.Threading;
+using AppLocker.Core;
+using Microsoft.Win32;
+
+namespace AppLocker.Manager;
+
+public partial class MainWindow : Window, IComponentConnector, IStyleConnector
+{
+	private List<AppItem>? _allApps;
+
+	private byte[]? _masterKey;
+
+	private bool _loadingSettings;
+
+
+
+
+	private bool _isVaultAuthenticated = false;
+	private bool _suppressNav = false;
+	private string _currentUnlockVaultPath = "";
+
+	public MainWindow()
+	{
+		_loadingSettings = true;
+		InitializeComponent();
+		_loadingSettings = false;
+		Loaded += MainWindow_Loaded;
+	}
+
+	private void MainWindow_Loaded(object sender, RoutedEventArgs e)
+	{
+		if (!MasterConfig.IsSetup())
+		{
+			SetupOverlay.Visibility = Visibility.Visible;
+			SetupInputPanel.Visibility = Visibility.Visible;
+			SetupSuccessPanel.Visibility = Visibility.Collapsed;
+			SetupPw1.Focus();
+		}
+		else
+		{
+			RefreshAll();
+		}
+	}
+
+	private void RefreshAll()
+	{
+		LoadList();
+		LoadPhoneTab();
+		LoadAboutTab();
+	}
+
+	private void Nav_Checked(object sender, RoutedEventArgs e)
+	{
+		if (_suppressNav || TabLockedPanel == null) return;
+
+		TabLockedPanel.Visibility = Visibility.Collapsed;
+		TabSecurityPanel.Visibility = Visibility.Collapsed;
+		TabPhonePanel.Visibility = Visibility.Collapsed;
+		TabAboutPanel.Visibility = Visibility.Collapsed;
+		if (TabVaultPanel != null) TabVaultPanel.Visibility = Visibility.Collapsed;
+
+		if (NavLocked.IsChecked == true)
+		{
+			_isVaultAuthenticated = false; // Require Master Password when re-entering Vault!
+			TabLockedPanel.Visibility = Visibility.Visible;
+			HeaderTitle.Text = "LOCKED ITEMS";
+			LoadList();
+		}
+		else if (NavSecurity.IsChecked == true)
+		{
+			_isVaultAuthenticated = false; // Require Master Password when re-entering Vault!
+			TabSecurityPanel.Visibility = Visibility.Visible;
+			HeaderTitle.Text = "SECURITY";
+		}
+		else if (NavPhone.IsChecked == true)
+		{
+			_isVaultAuthenticated = false; // Require Master Password when re-entering Vault!
+			TabPhonePanel.Visibility = Visibility.Visible;
+			HeaderTitle.Text = "PHONE LINK";
+			LoadPhoneTab();
+		}
+		else if (NavVault != null && NavVault.IsChecked == true)
+		{
+			if (!_isVaultAuthenticated)
+			{
+				byte[]? vaultKey = AcquireKey("Vault Locker access korte Master Password dao:");
+				if (vaultKey == null)
+				{
+					_suppressNav = true;
+					NavLocked.IsChecked = true;
+					_suppressNav = false;
+					TabLockedPanel.Visibility = Visibility.Visible;
+					HeaderTitle.Text = "LOCKED ITEMS";
+					return;
+				}
+				Array.Clear(vaultKey);
+				_isVaultAuthenticated = true;
+			}
+			TabVaultPanel!.Visibility = Visibility.Visible;
+			HeaderTitle.Text = "VAULT LOCKER";
+			LoadVaultsList();
+		}
+		else if (NavAbout.IsChecked == true)
+		{
+			_isVaultAuthenticated = false; // Require Master Password when re-entering Vault!
+			TabAboutPanel.Visibility = Visibility.Visible;
+			HeaderTitle.Text = "ABOUT & SYSTEM";
+			LoadAboutTab();
+		}
+	}
+
+	private void Window_MouseDown(object sender, MouseButtonEventArgs e)
+	{
+		if (e.ChangedButton == MouseButton.Left)
+		{
+			try
+			{
+				DragMove();
+			}
+			catch
+			{
+			}
+		}
+	}
+
+	private void TitleBar_MouseDown(object sender, MouseButtonEventArgs e)
+	{
+		if (e.ChangedButton == MouseButton.Left)
+		{
+			try
+			{
+				DragMove();
+			}
+			catch
+			{
+			}
+		}
+	}
+
+	private void Minimize_Click(object sender, RoutedEventArgs e)
+	{
+		WindowState = WindowState.Minimized;
+	}
+
+	private void Close_Click(object sender, RoutedEventArgs e)
+	{
+		Close();
+	}
+
+	private void LoadList()
+	{
+		List<DisplayItem> list = new List<DisplayItem>();
+		try
+		{
+			foreach (string item in LockRegistry.List())
+			{
+				list.Add(new DisplayItem
+				{
+					Name = Path.GetFileName(item.TrimEnd('\\')),
+					Path = item,
+					IsFolder = true
+				});
+			}
+		}
+		catch
+		{
+		}
+		try
+		{
+			foreach (string item2 in AppRegistry.List())
+			{
+				list.Add(new DisplayItem
+				{
+					Name = Path.GetFileNameWithoutExtension(item2),
+					Path = item2,
+					IsFolder = false,
+					IconSource = AppIconHelper.GetIcon(item2)
+				});
+			}
+		}
+		catch
+		{
+		}
+		ItemList.ItemsSource = list;
+		ItemCountText.Text = $"{list.Count} items locked";
+		EmptyState.Visibility = ((list.Count != 0) ? Visibility.Collapsed : Visibility.Visible);
+	}
+
+	private async void RemoveItem_Click(object sender, RoutedEventArgs e)
+	{
+		if (!(sender is Button { Tag: var tag }))
+		{
+			return;
+		}
+		string? pathOrNull = tag as string;
+		if (pathOrNull == null)
+		{
+			return;
+		}
+		string path = pathOrNull;
+		bool flag = Directory.Exists(path) || path.EndsWith(".aplk", StringComparison.OrdinalIgnoreCase);
+		byte[]? keyOrNull = AcquireKey("Unlock / Remove korte Master Password dao:");
+		if (keyOrNull == null)
+		{
+			return;
+		}
+		byte[] key = keyOrNull;
+		try
+		{
+			if (flag)
+			{
+				await Task.Run(() => FolderLocker.Unlock(path, key));
+				LockRegistry.Remove(path);
+			}
+			else
+			{
+				AppRegistry.Remove(path);
+				_ = Task.Run(() => GuardPipe.Send("relock|" + path));
+			}
+			InexIslandBridge.NotifyRemoved(flag ? Path.GetFileName(path.TrimEnd('\\')) : Path.GetFileNameWithoutExtension(path));
+			LoadList();
+		}
+		catch (Exception ex)
+		{
+			MessageBox.Show("Unlock fail hoyeche: " + ex.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Hand);
+		}
+		finally
+		{
+			Array.Clear(key);
+		}
+	}
+
+	private async void AddFolder_Click(object sender, RoutedEventArgs e)
+	{
+		OpenFolderDialog openFolderDialog = new OpenFolderDialog
+		{
+			Title = "Lock korar folder bachho"
+		};
+		if (openFolderDialog.ShowDialog(this) != true)
+		{
+			return;
+		}
+		string folder = openFolderDialog.FolderName;
+		if (string.IsNullOrWhiteSpace(folder) || !Directory.Exists(folder))
+		{
+			return;
+		}
+		if (FolderLocker.IsLocked(folder))
+		{
+			Guard.ToastChip.Show("\uE72E", "Already Locked", "Folder is already locked", System.Windows.Media.Color.FromRgb(251,191,36), 2500, this);
+			return;
+		}
+		if (!LockSafety.IsSafeFolder(folder, out string why))
+		{
+			MessageBox.Show(why, "Locker", MessageBoxButton.OK, MessageBoxImage.Exclamation);
+			return;
+		}
+		string folderName = Path.GetFileName(folder.TrimEnd('\\'));
+		PasswordPromptDialog passwordPromptDialog = new PasswordPromptDialog("Folder lock korte Master Password dao:", isLock: true, target: folderName)
+		{
+			Owner = this
+		};
+		if (passwordPromptDialog.ShowDialog() != true || passwordPromptDialog.MasterKey == null)
+		{
+			return;
+		}
+		byte[] key = passwordPromptDialog.MasterKey;
+		try
+		{
+			await Task.Run(() =>
+			{
+				FolderLocker.Lock(folder, key);
+			});
+			LockRegistry.Add(folder);
+			_ = Task.Run(() => GuardPipe.Send("watch|" + folder));
+			InexIslandBridge.NotifyLock(folderName);
+			LoadList();
+		}
+		catch (Exception ex)
+		{
+			MessageBox.Show("Lock fail hoyeche: " + ex.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Hand);
+		}
+		finally
+		{
+			Array.Clear(key);
+		}
+	}
+
+	private async void AddApp_Click(object sender, RoutedEventArgs e)
+	{
+		byte[]? appKey = AcquireKey("App lock korte Master Password dao:", isLock: true, target: "App");
+		if (appKey != null)
+		{
+			Array.Clear(appKey);
+			PickerOverlay.Visibility = Visibility.Visible;
+			PickerSearch.Text = "";
+			PickerStatus.Text = "Apps load hocche...";
+			AppList.ItemsSource = null;
+			if (_allApps == null)
+			{
+				_allApps = await Task.Run((Func<List<AppItem>>)LoadCleanApps);
+			}
+			PickerStatus.Text = $"{_allApps.Count} ta app paowa geche";
+			ApplyAppFilter();
+		}
+	}
+
+	private void ApplyAppFilter()
+	{
+		if (_allApps != null)
+		{
+			string q = PickerSearch.Text.Trim();
+			AppList.ItemsSource = _allApps.Where((AppItem a) => q.Length == 0 || a.Name.Contains(q, StringComparison.OrdinalIgnoreCase) || a.Path.Contains(q, StringComparison.OrdinalIgnoreCase)).ToList();
+		}
+	}
+
+	private void PickerSearch_Changed(object sender, TextChangedEventArgs e)
+	{
+		ApplyAppFilter();
+	}
+
+	private void PickerCancel_Click(object sender, RoutedEventArgs e)
+	{
+		PickerOverlay.Visibility = Visibility.Collapsed;
+	}
+
+	private void PickerLock_Click(object sender, RoutedEventArgs e)
+	{
+		object selectedItem = AppList.SelectedItem;
+		AppItem? a = selectedItem as AppItem;
+		if (a == null)
+		{
+			PickerStatus.Text = "Age ekta app select koro.";
+			return;
+		}
+		PickerOverlay.Visibility = Visibility.Collapsed;
+		string appPath = a.Path;
+		AppRegistry.Add(appPath);
+		Task.Run(() => GuardPipe.Send("relock|" + appPath));
+		InexIslandBridge.NotifyLock(a.Name);
+		LoadList();
+	}
+
+	private void AppList_DoubleClick(object sender, MouseButtonEventArgs e)
+	{
+		PickerLock_Click(sender, e);
+	}
+
+	private void PickerBrowse_Click(object sender, RoutedEventArgs e)
+	{
+		OpenFileDialog dlg = new OpenFileDialog
+		{
+			Title = "Lock korar app (.exe) bachho",
+			Filter = "Executables (*.exe)|*.exe",
+			DereferenceLinks = true
+		};
+		if (dlg.ShowDialog(this) == true)
+		{
+			PickerOverlay.Visibility = Visibility.Collapsed;
+			AppRegistry.Add(dlg.FileName);
+			Task.Run(() => GuardPipe.Send("relock|" + dlg.FileName));
+			InexIslandBridge.NotifyLock(Path.GetFileNameWithoutExtension(dlg.FileName));
+			LoadList();
+		}
+	}
+
+	private static List<AppItem> LoadCleanApps()
+	{
+		Dictionary<string, AppItem> dictionary = new Dictionary<string, AppItem>(StringComparer.OrdinalIgnoreCase);
+		string[] source = new string[16]
+		{
+			"uninstall", "remove", "reset", "cache", "help", "manual", "documentation", "readme", "license", "settings",
+			"profile", "troubleshoot", "updater", "update", "report", "diagnostics"
+		};
+		string[] array = new string[4]
+		{
+			Environment.GetFolderPath(Environment.SpecialFolder.CommonPrograms),
+			Environment.GetFolderPath(Environment.SpecialFolder.Programs),
+			Environment.GetFolderPath(Environment.SpecialFolder.Desktop),
+			Environment.GetFolderPath(Environment.SpecialFolder.CommonDesktopDirectory)
+		};
+		EnumerationOptions enumerationOptions = new EnumerationOptions
+		{
+			RecurseSubdirectories = true,
+			IgnoreInaccessible = true
+		};
+		string[] array2 = array;
+		foreach (string text in array2)
+		{
+			if (string.IsNullOrEmpty(text) || !Directory.Exists(text))
+			{
+				continue;
+			}
+			foreach (string item in Directory.EnumerateFiles(text, "*.lnk", enumerationOptions))
+			{
+				try
+				{
+					string name = Path.GetFileNameWithoutExtension(item);
+					if (source.Any((string w) => name.Contains(w, StringComparison.OrdinalIgnoreCase)))
+					{
+						continue;
+					}
+					string text2 = AppResolver.ResolveShortcut(item);
+					if (string.IsNullOrEmpty(text2) || !text2.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) || !File.Exists(text2) || AppRegistry.IsBlocked(text2))
+					{
+						continue;
+					}
+					if (dictionary.TryGetValue(text2, out var value))
+					{
+						if (name.Length < value.Name.Length)
+						{
+							value.Name = name;
+						}
+					}
+					else
+					{
+						ImageSource? icon = AppIconHelper.GetIcon(text2);
+						dictionary[text2] = new AppItem
+						{
+							Name = name,
+							Path = text2,
+							IconSource = icon
+						};
+					}
+				}
+				catch
+				{
+				}
+			}
+		}
+		return dictionary.Values.OrderBy((AppItem a) => a.Name, StringComparer.OrdinalIgnoreCase).ToList();
+	}
+
+	private static List<AppItem> LoadStoreApps()
+	{
+		List<AppItem> list = new List<AppItem>();
+		try
+		{
+			using Process? process = Process.Start(new ProcessStartInfo("powershell", "-NoProfile -Command \"Get-StartApps | Where-Object { $_.AppID -like '*!*' } | Select-Object Name, AppID | ConvertTo-Csv -NoTypeInformation\"")
+			{
+				CreateNoWindow = true,
+				UseShellExecute = false,
+				RedirectStandardOutput = true
+			});
+			if (process == null)
+			{
+				return list;
+			}
+			string s = process.StandardOutput.ReadToEnd();
+			process.WaitForExit(3000);
+			using StringReader stringReader = new StringReader(s);
+			string? text = stringReader.ReadLine();
+			while ((text = stringReader.ReadLine()) != null)
+			{
+				string[] array = text.Split(',');
+				if (array.Length < 2)
+				{
+					continue;
+				}
+				string name = array[0].Trim('"');
+				string text2 = array[1].Trim('"');
+				string text3 = (text2.Contains('!') ? text2.Substring(0, text2.IndexOf('!')) : text2);
+				string path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "WindowsApps");
+				if (!Directory.Exists(path))
+				{
+					continue;
+				}
+				foreach (string item in Directory.EnumerateDirectories(path, text3 + "*"))
+				{
+					string path2 = Path.Combine(item, "AppxManifest.xml");
+					if (!File.Exists(path2))
+					{
+						continue;
+					}
+					string text4 = File.ReadAllText(path2);
+					int num = text4.IndexOf("Executable=\"", StringComparison.OrdinalIgnoreCase);
+					if (num < 0)
+					{
+						continue;
+					}
+					int num2 = num + "Executable=\"".Length;
+					int num3 = text4.IndexOf('"', num2);
+					if (num3 >= 0)
+					{
+						int num4 = num2;
+						string path3 = text4.Substring(num4, num3 - num4);
+						string path4 = Path.Combine(item, path3);
+						if (File.Exists(path4))
+						{
+							list.Add(new AppItem
+							{
+								Name = name,
+								Path = path4
+							});
+							break;
+						}
+					}
+				}
+			}
+		}
+		catch
+		{
+		}
+		return list;
+	}
+
+	private void UpdatePassword_Click(object sender, RoutedEventArgs e)
+	{
+		string password = OldPwBox.Password;
+		string password2 = NewPwBox.Password;
+		string password3 = ConfirmPwBox.Password;
+		string? policyErr = PasswordPolicy.Validate(password2);
+		if (policyErr != null)
+		{
+			PassStatusMsg.Text = policyErr;
+			PassStatusMsg.Foreground = new SolidColorBrush(Color.FromRgb(248, 113, 113));
+			PassStatusMsg.Visibility = Visibility.Visible;
+		}
+		else if (password2 != password3)
+		{
+			PassStatusMsg.Text = "New password ebong Confirm password milche na.";
+			PassStatusMsg.Foreground = new SolidColorBrush(Color.FromRgb(248, 113, 113));
+			PassStatusMsg.Visibility = Visibility.Visible;
+		}
+		else
+		{
+			byte[]? oldCheck = AuthGate.TryPassword(password, out int changeWait);
+			if (oldCheck == null)
+			{
+				PassStatusMsg.Text = changeWait > 0
+					? "Onek bhul try. " + LockoutTracker.Format(changeWait) + " por abar try koro."
+					: "Current password bhul.";
+				PassStatusMsg.Foreground = new SolidColorBrush(Color.FromRgb(248, 113, 113));
+				PassStatusMsg.Visibility = Visibility.Visible;
+			}
+			else
+			{
+				Array.Clear(oldCheck);
+				if (MasterConfig.ChangePassword(password, password2))
+				{
+					PassStatusMsg.Text = "Master Password successfully updated!";
+					PassStatusMsg.Foreground = new SolidColorBrush(Color.FromRgb(16, 185, 129));
+					PassStatusMsg.Visibility = Visibility.Visible;
+					OldPwBox.Clear();
+					NewPwBox.Clear();
+					ConfirmPwBox.Clear();
+				}
+				else
+				{
+					PassStatusMsg.Text = "Current password bhul.";
+					PassStatusMsg.Foreground = new SolidColorBrush(Color.FromRgb(248, 113, 113));
+					PassStatusMsg.Visibility = Visibility.Visible;
+				}
+			}
+		}
+	}
+
+	private void RevealRecoveryKey_Click(object sender, RoutedEventArgs e)
+	{
+		PasswordPromptDialog passwordPromptDialog = new PasswordPromptDialog("Recovery Key dekhte Master Password dao:")
+		{
+			Owner = this
+		};
+		if (passwordPromptDialog.ShowDialog() != true)
+		{
+			return;
+		}
+		byte[]? keyWithPassword = MasterConfig.GetKeyWithPassword(passwordPromptDialog.Password);
+		if (keyWithPassword == null)
+		{
+			MessageBox.Show("Bhul password.", "Locker", MessageBoxButton.OK, MessageBoxImage.Exclamation);
+			return;
+		}
+		Array.Clear(keyWithPassword);
+		try
+		{
+			MasterConfig.Load();
+			RecoveryKeyDisplay.Text = "RECOVERY ACTIVE (Backed up during setup)";
+			Clipboard.SetText(RecoveryKeyDisplay.Text);
+			MessageBox.Show("Recovery Key status verified. Setups er somoy pawa key safe rakha thakbe.", "Locker", MessageBoxButton.OK, MessageBoxImage.Asterisk);
+		}
+		catch (Exception ex)
+		{
+			MessageBox.Show("Error: " + ex.Message, "Locker", MessageBoxButton.OK, MessageBoxImage.Hand);
+		}
+	}
+
+	private void LoadPhoneTab()
+	{
+		_loadingSettings = true;
+		try
+		{
+			LockerSettingsData current = LockerSettings.Current;
+			if (current.PairedPhone != null)
+			{
+				PhoneDeviceName.Text = current.PairedPhone.DeviceName;
+				bool vaultReady = MasterConfig.HasBiometricVaultV2();
+				PhoneStatusDetail.Text = vaultReady 
+					? $"Paired & Active (Fingerprint Linked) • IP: {current.PairedPhone.LastIpAddress}" 
+					: $"Paired on {current.PairedPhone.PairedAt.ToLocalTime():yyyy-MM-dd} • IP: {current.PairedPhone.LastIpAddress} (Fingerprint not linked - press Sync Key)";
+				if (SyncBiometricBtn != null)
+				{
+					SyncBiometricBtn.Visibility = vaultReady ? Visibility.Collapsed : Visibility.Visible;
+				}
+				PhonePairBtn.Content = "Unpair Phone";
+			}
+			else
+			{
+				if (SyncBiometricBtn != null) SyncBiometricBtn.Visibility = Visibility.Collapsed;
+				PhoneDeviceName.Text = "No Phone Paired";
+				PhoneStatusDetail.Text = "Pair your Android companion app to unlock via Fingerprint & Face.";
+				PhonePairBtn.Content = "Pair New Phone";
+			}
+			if (ToggleSameWiFi != null)
+			{
+				ToggleSameWiFi.IsChecked = current.RequireSameWiFi;
+			}
+			if (ToggleBluetooth != null)
+			{
+				ToggleBluetooth.IsChecked = current.RequireBluetooth;
+			}
+
+		}
+		finally
+		{
+			_loadingSettings = false;
+		}
+	}
+
+	private async void SyncBiometric_Click(object sender, RoutedEventArgs e)
+	{
+		LockerSettingsData current = LockerSettings.Current;
+		if (current.PairedPhone == null) return;
+
+		PasswordPromptDialog dlg = new PasswordPromptDialog("Master Password dao (Fingerprint link korte):")
+		{
+			Owner = this
+		};
+		if (dlg.ShowDialog() == true && dlg.MasterKey != null)
+		{
+			byte[] key = (byte[])dlg.MasterKey.Clone();
+			Array.Clear(dlg.MasterKey);
+			Guard.ToastChip.Show("\uE72B", "Phone e fingerprint dao", "Sensor e angul rakho", System.Windows.Media.Color.FromRgb(251,191,36), 4000, this);
+			var (ok, reason) = await PhoneCompanionService.EnrollBiometricAsync(key);
+			Array.Clear(key);
+			LoadPhoneTab();
+			if (ok)
+				Guard.ToastChip.Show("\uE72B", "Fingerprint Linked!", "Ei phone er finger ready", System.Windows.Media.Color.FromRgb(52,211,153), 3000, this);
+			else
+				Guard.ToastChip.Show("\uE72F", "Link hoyni", reason, System.Windows.Media.Color.FromRgb(248,113,113), 3500, this);
+		}
+	}
+
+	// Asks for the Master Password every time (no timer, nothing cached). Caller owns the array and clears it.
+	private byte[]? AcquireKey(string prompt, bool isLock = false, string target = "")
+	{
+		var dlg = new PasswordPromptDialog(prompt, isLock, target)
+		{
+			Owner = this
+		};
+		if (dlg.ShowDialog() != true || dlg.MasterKey == null) return null;
+		return dlg.MasterKey;
+	}
+
+	private async void EnrollAfterPair(byte[] key)
+	{
+		try
+		{
+			var (ok, reason) = await PhoneCompanionService.EnrollBiometricAsync(key, 1500);
+			LoadPhoneTab();
+			if (ok)
+				Guard.ToastChip.Show("\uE72B", "Fingerprint Linked!", "Ei phone er finger ready", System.Windows.Media.Color.FromRgb(52,211,153), 3000, this);
+			else
+				Guard.ToastChip.Show("\uE72F", "Fingerprint link hoyni", "Phone Link e Sync Key chapo (" + reason + ")", System.Windows.Media.Color.FromRgb(251,191,36), 4000, this);
+		}
+		catch { }
+		finally { Array.Clear(key); }
+	}
+
+private void StartPhonePair_Click(object sender, RoutedEventArgs e)
+	{
+		//IL_0147: Unknown result type (might be due to invalid IL or missing references)
+		//IL_014c: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0162: Expected Obj, but got Unknown
+		LockerSettingsData current = LockerSettings.Current;
+		if (current.PairedPhone != null)
+		{
+			PasswordPromptDialog passwordPromptDialog = new PasswordPromptDialog("Phone unpair korte Master Password dao:")
+			{
+				Owner = this
+			};
+			if (passwordPromptDialog.ShowDialog() == true && passwordPromptDialog.MasterKey != null)
+			{
+				Array.Clear(passwordPromptDialog.MasterKey);
+				string unpairedName = current.PairedPhone.DeviceName;
+				current.PairedPhone = null;
+				current.PhoneBiometricsEnabled = false;
+				MasterConfig.DeleteBiometricVault();
+				LockerSettings.Save(current);
+				LoadPhoneTab();
+				InexIslandBridge.NotifyPhoneUnpaired(unpairedName);
+				Guard.ToastChip.Show("\uE72F", "Phone Unpaired", "Phone disconnected", System.Windows.Media.Color.FromRgb(148,163,184), 2800, this);
+			}
+			return;
+		}
+		PasswordPromptDialog passwordPromptDialog2 = new PasswordPromptDialog("Notun phone pair korte Master Password dao:")
+		{
+			Owner = this
+		};
+		if (passwordPromptDialog2.ShowDialog() != true || passwordPromptDialog2.MasterKey == null)
+		{
+			return;
+		}
+		byte[] masterKeyCopy = (byte[])passwordPromptDialog2.MasterKey.Clone();
+		Array.Clear(passwordPromptDialog2.MasterKey);
+		bool handled = false;
+		var session = PhoneCompanionService.GeneratePairingSession((PairedPhoneInfo info) =>
+		{
+			((DispatcherObject)this).Dispatcher.Invoke((Action)(() =>
+			{
+				if (!handled)
+				{
+					handled = true;
+					EnrollAfterPair((byte[])masterKeyCopy.Clone());
+					Array.Clear(masterKeyCopy);
+					PairingOverlay.Visibility = Visibility.Collapsed;
+					LoadPhoneTab();
+					InexIslandBridge.NotifyPhonePaired(info.DeviceName);
+					Guard.ToastChip.Show("\uE72B", info.DeviceName + " Paired!", "Phone e finger dao", System.Windows.Media.Color.FromRgb(52,211,153), 3000, this);
+				}
+			}));
+		});
+		try
+		{
+			using var ms = new MemoryStream(session.QrPngBytes);
+			var bmp = new BitmapImage();
+			bmp.BeginInit();
+			bmp.CacheOption = BitmapCacheOption.OnLoad;
+			bmp.StreamSource = ms;
+			bmp.EndInit();
+			bmp.Freeze();
+			PairingQrImage.Source = bmp;
+		}
+		catch { }
+		PairingIpText.Text = $"{PhoneCompanionService.GetLocalIpAddress()}:{58820}";
+		PairingOverlay.Visibility = Visibility.Visible;
+		InexIslandBridge.NotifyPrompt("Pairing phone"); // island shows this for as long as the pairing screen is open
+		DispatcherTimer checkPairTimer = new DispatcherTimer
+		{
+			Interval = TimeSpan.FromMilliseconds(500L)
+		};
+		checkPairTimer.Tick += (object? s2, EventArgs e2) =>
+		{
+			if ((PairingOverlay.Visibility != Visibility.Visible) | handled)
+			{
+				checkPairTimer.Stop();
+			}
+			else
+			{
+				LockerSettingsData current2 = LockerSettings.Current;
+				if (current2.PairedPhone != null)
+				{
+					handled = true;
+					checkPairTimer.Stop();
+					EnrollAfterPair((byte[])masterKeyCopy.Clone());
+					Array.Clear(masterKeyCopy);
+					PairingOverlay.Visibility = Visibility.Collapsed;
+					LoadPhoneTab();
+					InexIslandBridge.NotifyPhonePaired(current2.PairedPhone.DeviceName);
+					Guard.ToastChip.Show("\uE72B", current2.PairedPhone.DeviceName + " Paired!", "Phone e finger dao", System.Windows.Media.Color.FromRgb(52,211,153), 3000, this);
+				}
+			}
+		};
+		checkPairTimer.Start();
+	}
+
+	private void PairingCancel_Click(object sender, RoutedEventArgs e)
+	{
+		PhoneCompanionService.CancelPairing();
+		PairingOverlay.Visibility = Visibility.Collapsed;
+		InexIslandBridge.NotifyCancel("Pairing phone");
+	}
+
+	private void PhoneSetting_Changed(object sender, RoutedEventArgs e)
+	{
+		if (_loadingSettings || ToggleSameWiFi == null || ToggleBluetooth == null)
+		{
+			return;
+		}
+		LockerSettingsData current = LockerSettings.Current;
+		current.RequireSameWiFi = ToggleSameWiFi.IsChecked == true;
+		current.RequireBluetooth = ToggleBluetooth.IsChecked == true;
+		LockerSettings.Save(current);
+	}
+
+	private async void TestPhoneAuth_Click(object sender, RoutedEventArgs e)
+	{
+		if (LockerSettings.Current.PairedPhone == null)
+		{
+			Guard.ToastChip.Show("\uE72F", "No Phone Paired", "Pair a phone first", System.Windows.Media.Color.FromRgb(251,191,36), 2500, this);
+		}
+		else if (await PhoneCompanionService.RequestBiometricUnlockAsync("Test Verification"))
+		{
+			Guard.ToastChip.Show("\uE72B", "Biometric Verified!", "Phone auth works", System.Windows.Media.Color.FromRgb(52,211,153), 2500, this);
+		}
+		else
+		{
+			Guard.ToastChip.Show("\uE7BA", "Phone Timeout", "Check companion app & WiFi", System.Windows.Media.Color.FromRgb(248,113,113), 3000, this);
+		}
+	}
+
+	private void LoadAboutTab()
+	{
+		_loadingSettings = true;
+		try
+		{
+			LockerSettingsData current = LockerSettings.Current;
+			bool flag = InexIslandBridge.IsInstalled();
+			bool flag2 = InexIslandBridge.IsRunning();
+			if (ToggleIsland == null)
+			{
+				return;
+			}
+			if (!flag)
+			{
+				ToggleIsland.IsEnabled = false;
+				ToggleIsland.IsChecked = false;
+				IslandBadgeText.Text = "Not Installed";
+				IslandBadgeText.Foreground = new SolidColorBrush(Color.FromRgb(248, 113, 113));
+				IslandBadge.Background = new SolidColorBrush(Color.FromArgb(51, 239, 68, 68));
+				return;
+			}
+			ToggleIsland.IsEnabled = true;
+			ToggleIsland.IsChecked = current.InexIslandAnimation;
+			if (flag2)
+			{
+				IslandBadgeText.Text = "Running";
+				IslandBadgeText.Foreground = new SolidColorBrush(Color.FromRgb(16, 185, 129));
+				IslandBadge.Background = new SolidColorBrush(Color.FromArgb(51, 16, 185, 129));
+			}
+			else
+			{
+				IslandBadgeText.Text = "Installed";
+				IslandBadgeText.Foreground = new SolidColorBrush(Color.FromRgb(130, 130, 150));
+				IslandBadge.Background = new SolidColorBrush(Color.FromArgb(34, byte.MaxValue, byte.MaxValue, byte.MaxValue));
+			}
+		}
+		finally
+		{
+			_loadingSettings = false;
+		}
+	}
+
+	private void IslandToggle_Changed(object sender, RoutedEventArgs e)
+	{
+		if (!_loadingSettings && ToggleIsland != null)
+		{
+			LockerSettingsData current = LockerSettings.Current;
+			current.InexIslandAnimation = ToggleIsland.IsChecked == true;
+			LockerSettings.Save(current);
+		}
+	}
+
+	private void OpenGitHub_Click(object sender, RoutedEventArgs e)
+	{
+		try
+		{
+			Process.Start(new ProcessStartInfo("https://github.com/inrwxyzyz")
+			{
+				UseShellExecute = true
+			});
+		}
+		catch
+		{
+		}
+	}
+
+	private void StartUninstall_Click(object sender, RoutedEventArgs e)
+	{
+		UninstallPwBox.Clear();
+		UninstallError.Visibility = Visibility.Collapsed;
+		UninstallOverlay.Visibility = Visibility.Visible;
+		UninstallPwBox.Focus();
+	}
+
+	private void UninstallCancel_Click(object sender, RoutedEventArgs e)
+	{
+		UninstallOverlay.Visibility = Visibility.Collapsed;
+	}
+
+	private async void ConfirmUninstall_Click(object sender, RoutedEventArgs e)
+	{
+		string password = UninstallPwBox.Password;
+		if (string.IsNullOrEmpty(password))
+		{
+			UninstallError.Text = "Master Password dao.";
+			UninstallError.Visibility = Visibility.Visible;
+			return;
+		}
+		byte[]? array = AuthGate.TryPassword(password, out int uninstallWait, allowRecovery: true);
+		if (array == null)
+		{
+			UninstallError.Text = uninstallWait > 0
+				? "Onek bhul try. " + LockoutTracker.Format(uninstallWait) + " por abar try koro."
+				: "Bhul Master Password ba Recovery Key.";
+			UninstallError.Visibility = Visibility.Visible;
+			return;
+		}
+		Array.Clear(array);
+		UninstallOverlay.Visibility = Visibility.Collapsed;
+		string text = Path.Combine(AppContext.BaseDirectory, "uninstall.exe");
+		if (File.Exists(text))
+		{
+			try
+			{
+				Process.Start(new ProcessStartInfo(text, "--pw \"" + password + "\"")
+				{
+					UseShellExecute = true
+				});
+			}
+			catch
+			{
+			}
+		}
+		Close();
+		Application.Current.Shutdown();
+	}
+
+	private void SetupCancel_Click(object sender, RoutedEventArgs e)
+	{
+		Close();
+	}
+
+	private void SetupCreate_Click(object sender, RoutedEventArgs e)
+	{
+		string password = SetupPw1.Password;
+		string password2 = SetupPw2.Password;
+		string? setupPolicyErr = PasswordPolicy.Validate(password);
+		if (setupPolicyErr != null)
+		{
+			SetupError.Text = setupPolicyErr;
+			SetupError.Visibility = Visibility.Visible;
+			return;
+		}
+		if (password != password2)
+		{
+			SetupError.Text = "Duto password eki hote hobe.";
+			SetupError.Visibility = Visibility.Visible;
+			return;
+		}
+		try
+		{
+			string text = MasterConfig.Setup(password);
+			_masterKey = MasterConfig.GetKeyWithPassword(password);
+			SetupRecoveryKeyText.Text = text;
+			SetupInputPanel.Visibility = Visibility.Collapsed;
+			SetupSuccessPanel.Visibility = Visibility.Visible;
+		}
+		catch (Exception ex)
+		{
+			SetupError.Text = ex.Message;
+			SetupError.Visibility = Visibility.Visible;
+		}
+	}
+
+	private void SetupDone_Click(object sender, RoutedEventArgs e)
+	{
+		SetupOverlay.Visibility = Visibility.Collapsed;
+		RefreshAll();
+	}
+
+	// ===================================================================================
+	// VAULT LOCKER LOGIC & METHODS
+	// Password-only. The chosen folder is encrypted in place (no clone, no zip, no phone).
+	// ===================================================================================
+	public class VaultDisplayItem
+	{
+		public string VaultId { get; set; } = "";
+		public string FolderPath { get; set; } = "";
+		public string FolderName { get; set; } = "";
+		public bool IsLocked { get; set; }
+		public string StatusText => IsLocked ? "LOCKED" : "UNLOCKED";
+		public System.Windows.Media.Brush StatusBadgeBg => IsLocked ? new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(39, 14, 21)) : new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(15, 34, 25));
+		public System.Windows.Media.Brush StatusTextFg => IsLocked ? new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(248, 113, 113)) : new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(52, 211, 153));
+		public string ActionButtonText => IsLocked ? "Unlock" : "Lock";
+	}
+
+	private bool _vaultRelockMode = false;
+
+	private void LoadVaultsList()
+	{
+		var items = new List<VaultDisplayItem>();
+		var settings = LockerSettings.Load();
+		foreach (var v in settings.SavedVaults)
+		{
+			bool isLocked = PortableVaultService.IsVaultLocked(v.FolderPath);
+			items.Add(new VaultDisplayItem
+			{
+				VaultId = v.VaultId,
+				FolderPath = v.FolderPath,
+				FolderName = v.FolderName,
+				IsLocked = isLocked
+			});
+		}
+		VaultListBox.ItemsSource = items;
+	}
+
+	private void VaultBrowseLock_Click(object sender, RoutedEventArgs e)
+	{
+		var dlg = new Microsoft.Win32.OpenFolderDialog
+		{
+			Title = "Lock korar jonno folder bachho"
+		};
+		if (dlg.ShowDialog(this) == true && Directory.Exists(dlg.FolderName))
+		{
+			HandleVaultFolderSelected(dlg.FolderName);
+		}
+	}
+
+	private void VaultBrowseUnlock_Click(object sender, RoutedEventArgs e)
+	{
+		var dlg = new Microsoft.Win32.OpenFolderDialog
+		{
+			Title = "Unlock korar jonno Vault folder bachho"
+		};
+		if (dlg.ShowDialog(this) == true && Directory.Exists(dlg.FolderName))
+		{
+			HandleVaultFolderSelected(dlg.FolderName);
+		}
+	}
+
+	private void HandleVaultFolderSelected(string folderPath)
+	{
+		if (string.IsNullOrWhiteSpace(folderPath) || !Directory.Exists(folderPath)) return;
+
+		if (PortableVaultService.IsVault(folderPath))
+		{
+			VaultMetadata? meta = null;
+			try { meta = PortableVaultService.LoadMetadata(folderPath); } catch { }
+
+			if (meta != null && meta.IsLocked)
+			{
+				_currentUnlockVaultPath = folderPath;
+				VaultUnlockTitle.Text = "Unlock Vault: " + meta.FolderName;
+				VaultUnlockFolderText.Text = "Folder: " + folderPath;
+				VaultUnlockPw.Password = "";
+				VaultUnlockError.Visibility = Visibility.Collapsed;
+				VaultUnlockProgressPanel.Visibility = Visibility.Collapsed;
+				VaultUnlockOverlay.Visibility = Visibility.Visible;
+				VaultUnlockPw.Focus();
+			}
+			else
+			{
+				var res = MessageBox.Show($"Ei vault folder-ta ({Path.GetFileName(folderPath.TrimEnd('\\', '/'))}) ekhon UNLOCKED ache. Abar lock korte chan?", "Vault Locker", MessageBoxButton.YesNo, MessageBoxImage.Question);
+				if (res == MessageBoxResult.Yes)
+				{
+					ShowVaultCreateOverlay(folderPath, relock: true);
+				}
+				else
+				{
+					System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo { FileName = folderPath, UseShellExecute = true });
+				}
+			}
+		}
+		else
+		{
+			// New folder: encrypt it right here (in place)
+			ShowVaultCreateOverlay(folderPath, relock: false);
+		}
+	}
+
+	private void ShowVaultCreateOverlay(string folderPath, bool relock)
+	{
+		_vaultRelockMode = relock;
+		_currentUnlockVaultPath = folderPath;
+		VaultCreateFolderPath.Text = folderPath;
+		VaultCreatePw1.Password = "";
+		VaultCreatePw2.Password = "";
+		VaultCreateError.Visibility = Visibility.Collapsed;
+		VaultCreateProgressPanel.Visibility = Visibility.Collapsed;
+		VaultCreateProgressBar.Value = 0;
+
+		VaultCreateTitle.Text = relock ? "Re-lock Vault" : "Lock Folder with Password";
+		VaultCreateNote.Visibility = relock ? Visibility.Collapsed : Visibility.Visible;
+		VaultCreatePwLabel1.Text = relock ? "Vault Password:" : "Vault Password (independent from Locker Pro):";
+		VaultCreatePw2Panel.Visibility = relock ? Visibility.Collapsed : Visibility.Visible;
+		BtnVaultCreateConfirm.Content = relock ? "Lock Vault" : "Encrypt & Lock";
+
+		VaultCreateOverlay.Visibility = Visibility.Visible;
+		VaultCreatePw1.Focus();
+	}
+
+	private void VaultCreateCancel_Click(object sender, RoutedEventArgs e)
+	{
+		VaultCreateOverlay.Visibility = Visibility.Collapsed;
+	}
+
+	private async void VaultCreateConfirm_Click(object sender, RoutedEventArgs e)
+	{
+		string folder = VaultCreateFolderPath.Text;
+		string pw1 = VaultCreatePw1.Password;
+		string pw2 = VaultCreatePw2.Password;
+
+		if (_vaultRelockMode)
+		{
+			if (string.IsNullOrEmpty(pw1))
+			{
+				VaultCreateError.Text = "Vault password likhun.";
+				VaultCreateError.Visibility = Visibility.Visible;
+				return;
+			}
+		}
+		else
+		{
+			if (!LockSafety.IsSafeVaultFolder(folder, out string why))
+			{
+				VaultCreateError.Text = why;
+				VaultCreateError.Visibility = Visibility.Visible;
+				return;
+			}
+			if (string.IsNullOrEmpty(pw1) || pw1.Length < 4)
+			{
+				VaultCreateError.Text = "Vault password ontoto 4 character hote hobe.";
+				VaultCreateError.Visibility = Visibility.Visible;
+				return;
+			}
+			if (pw1 != pw2)
+			{
+				VaultCreateError.Text = "Duto password match korchena.";
+				VaultCreateError.Visibility = Visibility.Visible;
+				return;
+			}
+		}
+
+		string vaultName = Path.GetFileName(folder.TrimEnd('\\', '/'));
+		BtnVaultCreateConfirm.IsEnabled = false;
+		VaultCreateError.Visibility = Visibility.Collapsed;
+		VaultCreateProgressBar.Value = 0;
+		VaultCreateProgressPanel.Visibility = Visibility.Visible;
+		var prog = new Progress<(int cur, int tot, string file)>(p =>
+		{
+			VaultCreateProgressBar.Value = (p.cur * 100.0) / Math.Max(1, p.tot);
+			VaultCreateProgressText.Text = $"Encrypting {p.cur}/{p.tot}: {p.file}";
+		});
+
+		try
+		{
+			if (_vaultRelockMode)
+				await PortableVaultService.RelockVaultAsync(folder, pw1, prog);
+			else
+				await PortableVaultService.CreateAndLockVaultAsync(folder, pw1, prog);
+
+			VaultCreateOverlay.Visibility = Visibility.Collapsed;
+			LoadVaultsList();
+			InexIslandBridge.NotifyLock(vaultName);
+			Guard.ToastChip.Show("", "Vault Locked!", vaultName, System.Windows.Media.Color.FromRgb(52, 211, 153), 3000, this);
+		}
+		catch (Exception ex)
+		{
+			VaultCreateError.Text = ex.Message;
+			VaultCreateError.Visibility = Visibility.Visible;
+			LoadVaultsList();
+		}
+		finally
+		{
+			BtnVaultCreateConfirm.IsEnabled = true;
+			VaultCreateProgressPanel.Visibility = Visibility.Collapsed;
+		}
+	}
+
+	private void VaultUnlockCancel_Click(object sender, RoutedEventArgs e)
+	{
+		VaultUnlockOverlay.Visibility = Visibility.Collapsed;
+	}
+
+	private async void VaultUnlockPw_Click(object sender, RoutedEventArgs e)
+	{
+		string pw = VaultUnlockPw.Password;
+		if (string.IsNullOrEmpty(pw))
+		{
+			VaultUnlockError.Text = "Vault password likhun.";
+			VaultUnlockError.Visibility = Visibility.Visible;
+			return;
+		}
+
+		BtnVaultUnlockPw.IsEnabled = false;
+		VaultUnlockProgressBar.Value = 0;
+		VaultUnlockProgressPanel.Visibility = Visibility.Visible;
+		VaultUnlockError.Visibility = Visibility.Collapsed;
+		var prog = new Progress<(int cur, int tot, string file)>(p =>
+		{
+			VaultUnlockProgressBar.Value = (p.cur * 100.0) / Math.Max(1, p.tot);
+			VaultUnlockProgressText.Text = $"Decrypting {p.cur}/{p.tot}: {p.file}";
+		});
+
+		try
+		{
+			await PortableVaultService.UnlockVaultWithPasswordAsync(_currentUnlockVaultPath, pw, prog);
+			VaultUnlockOverlay.Visibility = Visibility.Collapsed;
+			LoadVaultsList();
+			InexIslandBridge.NotifyUnlock("password", Path.GetFileName(_currentUnlockVaultPath.TrimEnd('\\', '/')));
+			Guard.ToastChip.Show("", "Vault Unlocked!", Path.GetFileName(_currentUnlockVaultPath.TrimEnd('\\', '/')), System.Windows.Media.Color.FromRgb(52, 211, 153), 3000, this);
+			System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo { FileName = _currentUnlockVaultPath, UseShellExecute = true });
+		}
+		catch (Exception ex)
+		{
+			VaultUnlockError.Text = ex.Message;
+			VaultUnlockError.Visibility = Visibility.Visible;
+		}
+		finally
+		{
+			BtnVaultUnlockPw.IsEnabled = true;
+			VaultUnlockProgressPanel.Visibility = Visibility.Collapsed;
+		}
+	}
+
+	private void VaultAction_Click(object sender, RoutedEventArgs e)
+	{
+		if (sender is Button btn && btn.Tag is VaultDisplayItem item)
+		{
+			HandleVaultFolderSelected(item.FolderPath);
+		}
+	}
+
+	private void VaultRemoveList_Click(object sender, RoutedEventArgs e)
+	{
+		if (sender is Button btn && btn.Tag is VaultDisplayItem item)
+		{
+			var settings = LockerSettings.Load();
+			settings.SavedVaults.RemoveAll(v => v.VaultId == item.VaultId || v.FolderPath.Equals(item.FolderPath, StringComparison.OrdinalIgnoreCase));
+			LockerSettings.Save(settings);
+			LoadVaultsList();
+		}
+	}
+
+
+
+}

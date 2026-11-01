@@ -1,0 +1,1090 @@
+<Window x:Class="AppLocker.Manager.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Locker" Height="604" Width="874" MinHeight="544" MinWidth="784"
+        WindowStartupLocation="CenterScreen"
+        AllowsTransparency="True" WindowStyle="None" Background="Transparent"
+        UseLayoutRounding="True" SnapsToDevicePixels="True"
+        TextOptions.TextFormattingMode="Display" TextOptions.TextRenderingMode="ClearType"
+        MouseLeftButtonDown="Window_MouseDown">
+
+    <Window.Resources>
+        <!-- Deep Pitch-Dark Obsidian Palette (Matches Reference Theme) -->
+        <SolidColorBrush x:Key="BgDark" Color="#030305"/>
+        <SolidColorBrush x:Key="SidebarBg" Color="#060608"/>
+        <SolidColorBrush x:Key="ContentBg" Color="#020204"/>
+        <SolidColorBrush x:Key="CardBg" Color="#0A0A0E"/>
+        <SolidColorBrush x:Key="Line" Color="#161620"/>
+        <SolidColorBrush x:Key="LineMuted" Color="#101016"/>
+        <SolidColorBrush x:Key="TextMain" Color="#FFFFFF"/>
+        <SolidColorBrush x:Key="TextDim" Color="#8E8E9E"/>
+        <SolidColorBrush x:Key="TextMuted" Color="#565666"/>
+        <SolidColorBrush x:Key="DangerRed" Color="#FF453A"/>
+        <SolidColorBrush x:Key="DangerBg" Color="#18080C"/>
+
+        <!-- Global Sleek Dark ScrollBar Style -->
+        <Style x:Key="ScrollBarThumb" TargetType="{x:Type Thumb}">
+            <Setter Property="OverridesDefaultStyle" Value="true"/>
+            <Setter Property="IsTabStop" Value="false"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type Thumb}">
+                        <Border x:Name="ThumbBorder" Background="#262638" CornerRadius="3.5"/>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="true">
+                                <Setter TargetName="ThumbBorder" Property="Background" Value="#3E3E56"/>
+                            </Trigger>
+                            <Trigger Property="IsDragging" Value="true">
+                                <Setter TargetName="ThumbBorder" Property="Background" Value="#545472"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style TargetType="{x:Type ScrollBar}">
+            <Setter Property="Stylus.IsPressAndHoldEnabled" Value="false"/>
+            <Setter Property="Stylus.IsFlicksEnabled" Value="false"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Width" Value="7"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type ScrollBar}">
+                        <Grid x:Name="Bg" SnapsToDevicePixels="true" Background="Transparent">
+                            <Track x:Name="PART_Track" IsDirectionReversed="true" IsEnabled="{TemplateBinding IsMouseOver}">
+                                <Track.DecreaseRepeatButton>
+                                    <RepeatButton Command="{x:Static ScrollBar.LineUpCommand}" Opacity="0" Focusable="false" Height="0"/>
+                                </Track.DecreaseRepeatButton>
+                                <Track.Thumb>
+                                    <Thumb Style="{StaticResource ScrollBarThumb}"/>
+                                </Track.Thumb>
+                                <Track.IncreaseRepeatButton>
+                                    <RepeatButton Command="{x:Static ScrollBar.LineDownCommand}" Opacity="0" Focusable="false" Height="0"/>
+                                </Track.IncreaseRepeatButton>
+                            </Track>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="Orientation" Value="Horizontal">
+                    <Setter Property="Width" Value="Auto"/>
+                    <Setter Property="Height" Value="7"/>
+                    <Setter Property="Template">
+                        <Setter.Value>
+                            <ControlTemplate TargetType="{x:Type ScrollBar}">
+                                <Grid x:Name="Bg" SnapsToDevicePixels="true" Background="Transparent">
+                                    <Track x:Name="PART_Track" IsEnabled="{TemplateBinding IsMouseOver}">
+                                        <Track.DecreaseRepeatButton>
+                                            <RepeatButton Command="{x:Static ScrollBar.LineLeftCommand}" Opacity="0" Focusable="false" Width="0"/>
+                                        </Track.DecreaseRepeatButton>
+                                        <Track.Thumb>
+                                            <Thumb Style="{StaticResource ScrollBarThumb}"/>
+                                        </Track.Thumb>
+                                        <Track.IncreaseRepeatButton>
+                                            <RepeatButton Command="{x:Static ScrollBar.LineRightCommand}" Opacity="0" Focusable="false" Width="0"/>
+                                        </Track.IncreaseRepeatButton>
+                                    </Track>
+                                </Grid>
+                            </ControlTemplate>
+                        </Setter.Value>
+                    </Setter>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Sidebar Tab Button Style (Inex Island Style) -->
+        <Style x:Key="SidebarNavBtn" TargetType="RadioButton">
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Height" Value="40"/>
+            <Setter Property="Margin" Value="0,0,0,4"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RadioButton">
+                        <Border x:Name="Bd" CornerRadius="8" Background="Transparent" Padding="12,0">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <TextBlock x:Name="Ico" Text="{Binding Tag, RelativeSource={RelativeSource TemplatedParent}}"
+                                           FontFamily="Segoe MDL2 Assets" FontSize="13" Foreground="{StaticResource TextDim}"
+                                           VerticalAlignment="Center" Margin="0,0,12,0"/>
+                                <TextBlock x:Name="Txt" Text="{TemplateBinding Content}"
+                                           FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource TextDim}"
+                                           VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#12121A"/>
+                                <Setter TargetName="Txt" Property="Foreground" Value="{StaticResource TextMain}"/>
+                                <Setter TargetName="Ico" Property="Foreground" Value="{StaticResource TextMain}"/>
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#161622"/>
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="#252538"/>
+                                <Setter TargetName="Bd" Property="BorderThickness" Value="1"/>
+                                <Setter TargetName="Txt" Property="Foreground" Value="#FFFFFF"/>
+                                <Setter TargetName="Ico" Property="Foreground" Value="#FFFFFF"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Standard Button Style (Inex Glass Button) -->
+        <Style x:Key="Btn" TargetType="Button">
+            <Setter Property="Foreground" Value="{StaticResource TextMain}"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Height" Value="32"/>
+            <Setter Property="Padding" Value="16,0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Background" Value="#171722"/>
+            <Setter Property="BorderBrush" Value="{StaticResource Line}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="8">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" Margin="{TemplateBinding Padding}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#232332"/>
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="#303046"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#101018"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Bd" Property="Opacity" Value="0.4"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Inex Island Crisp Primary Button (Pure White / Black Text) -->
+        <Style x:Key="AccentBtn" TargetType="Button" BasedOn="{StaticResource Btn}">
+            <Setter Property="Background" Value="#FFFFFF"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Foreground" Value="#09090E"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Padding" Value="18,0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="8">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" Margin="{TemplateBinding Padding}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#E5E5EB"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#CCCCCC"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Bd" Property="Opacity" Value="0.4"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Danger Button Style (Inex Island Red Border / Red Text) -->
+        <Style x:Key="DangerBtn" TargetType="Button" BasedOn="{StaticResource Btn}">
+            <Setter Property="Background" Value="{StaticResource DangerBg}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource DangerRed}"/>
+            <Setter Property="Foreground" Value="{StaticResource DangerRed}"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Padding" Value="18,0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="8">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" Margin="{TemplateBinding Padding}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{StaticResource DangerRed}"/>
+                                <Setter Property="Foreground" Value="#FFFFFF"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Window Title Bar Icon Button Style -->
+        <Style x:Key="TitleBtn" TargetType="Button">
+            <Setter Property="Width" Value="34"/>
+            <Setter Property="Height" Value="30"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="{StaticResource TextDim}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="6">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#1AFFFFFF"/>
+                                <Setter Property="Foreground" Value="{StaticResource TextMain}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Exact Inex Island iOS-Style Toggle Switch -->
+        <Style x:Key="ToggleSwitch" TargetType="CheckBox">
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="CheckBox">
+                        <Grid Width="44" Height="24">
+                            <!-- Track -->
+                            <Border x:Name="Track" CornerRadius="12" Background="#20202C" BorderBrush="#2C2C3E" BorderThickness="1"/>
+                            <!-- Thumb -->
+                            <Ellipse x:Name="Thumb" Width="18" Height="18" Fill="#7A7A8C" HorizontalAlignment="Left" Margin="3,0,0,0">
+                                <Ellipse.RenderTransform>
+                                    <TranslateTransform x:Name="ThumbTrans" X="0"/>
+                                </Ellipse.RenderTransform>
+                            </Ellipse>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Track" Property="Background" Value="#FFFFFF"/>
+                                <Setter TargetName="Track" Property="BorderBrush" Value="#FFFFFF"/>
+                                <Setter TargetName="Thumb" Property="Fill" Value="#09090E"/>
+                                <Setter TargetName="Thumb" Property="Margin" Value="23,0,0,0"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.35"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Inex Dark Text Box / Password Box Style -->
+        <Style TargetType="TextBox">
+            <Setter Property="Background" Value="#101018"/>
+            <Setter Property="Foreground" Value="{StaticResource TextMain}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource Line}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Height" Value="36"/>
+            <Setter Property="Padding" Value="10,6"/>
+            <Setter Property="CaretBrush" Value="#FFFFFF"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TextBox">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="8">
+                            <ScrollViewer x:Name="PART_ContentHost" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsFocused" Value="True">
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="#4A4A64"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style TargetType="PasswordBox">
+            <Setter Property="Background" Value="#101018"/>
+            <Setter Property="Foreground" Value="{StaticResource TextMain}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource Line}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Height" Value="36"/>
+            <Setter Property="Padding" Value="10,6"/>
+            <Setter Property="CaretBrush" Value="#FFFFFF"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="PasswordBox">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="8">
+                            <ScrollViewer x:Name="PART_ContentHost" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsFocused" Value="True">
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="#4A4A64"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <!-- Outer Window Padding: Prevents DWM rectangular corner shadow bleed -->
+    <Grid Margin="12">
+        <!-- Root Card Container with Perfect Rounded Clipping -->
+        <Border x:Name="RootBorder" Background="{StaticResource BgDark}" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="14">
+            <Border.Effect>
+                <DropShadowEffect BlurRadius="18" ShadowDepth="4" Opacity="0.5" Color="#000000" Direction="270"/>
+            </Border.Effect>
+
+            <!-- Inner Border with CornerRadius & ClipToBounds so children never poke through corners -->
+            <Border CornerRadius="13" ClipToBounds="True">
+                <Grid>
+                    <!-- Main Content Layout -->
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="210"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <!-- LEFT SIDEBAR -->
+                        <Border Grid.Column="0" Background="{StaticResource SidebarBg}" BorderBrush="{StaticResource Line}" BorderThickness="0,0,1,0">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+
+                                <!-- Sidebar Logo Header -->
+                                <StackPanel Orientation="Horizontal" Margin="20,18,0,24" VerticalAlignment="Center">
+                                    <TextBlock Text="/" Foreground="#FFFFFF" FontWeight="Bold" FontSize="18" VerticalAlignment="Center"/>
+                                    <TextBlock Text=" Locker" Foreground="{StaticResource TextMain}" FontWeight="SemiBold" FontSize="16" VerticalAlignment="Center"/>
+                                    <Border Background="#1C1C28" CornerRadius="4" Padding="5,2" Margin="8,0,0,0" VerticalAlignment="Center">
+                                        <TextBlock Text="PRO" Foreground="#FFFFFF" FontSize="9.5" FontWeight="Bold"/>
+                                    </Border>
+                                </StackPanel>
+
+                                <!-- Navigation Tabs -->
+                                <StackPanel Grid.Row="1" Margin="12,0,12,0">
+                                    <RadioButton x:Name="NavLocked" Style="{StaticResource SidebarNavBtn}" Content="Locked Items"
+                                                 Tag="&#xE72E;" IsChecked="True" Checked="Nav_Checked"/>
+                                    <RadioButton x:Name="NavSecurity" Style="{StaticResource SidebarNavBtn}" Content="Security &amp; Pass"
+                                                 Tag="&#xE8D7;" Checked="Nav_Checked"/>
+                                    <RadioButton x:Name="NavPhone" Style="{StaticResource SidebarNavBtn}" Content="Phone Link"
+                                                 Tag="&#xE8EA;" Checked="Nav_Checked"/>
+                                    <RadioButton x:Name="NavVault" Style="{StaticResource SidebarNavBtn}" Content="Vault Locker"
+                                                 Tag="&#xEDA2;" Checked="Nav_Checked"/>
+                                    <RadioButton x:Name="NavAbout" Style="{StaticResource SidebarNavBtn}" Content="About &amp; System"
+                                                 Tag="&#xE946;" Checked="Nav_Checked"/>
+                                </StackPanel>
+
+                                <!-- Guard Status Footer -->
+                                <Border Grid.Row="2" Margin="14,0,14,16" Padding="12,10" Background="#0F1018" CornerRadius="8" BorderBrush="{StaticResource LineMuted}" BorderThickness="1">
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <Ellipse x:Name="GuardStatusDot" Width="8" Height="8" Fill="#10B981" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                        <TextBlock x:Name="GuardStatusText" Text="Guard Active" Foreground="{StaticResource TextDim}" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Border>
+                            </Grid>
+                        </Border>
+
+                        <!-- RIGHT CONTENT AREA -->
+                        <Grid Grid.Column="1" Background="{StaticResource ContentBg}">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="46"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+
+                            <!-- Top Window Header (Drag area + Window controls) -->
+                            <Grid Grid.Row="0" Background="Transparent" MouseLeftButtonDown="TitleBar_MouseDown">
+                                <TextBlock x:Name="HeaderTitle" Text="LOCKED ITEMS" Foreground="{StaticResource TextMuted}"
+                                           FontSize="11" FontWeight="Bold" Margin="24,16,0,0" VerticalAlignment="Center"/>
+
+                                <!-- Minimize / Close Buttons -->
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,12,0">
+                                    <Button Content="&#xE921;" FontFamily="Segoe MDL2 Assets" FontSize="10" Style="{StaticResource TitleBtn}" Click="Minimize_Click"/>
+                                    <Button Content="&#xE8BB;" FontFamily="Segoe MDL2 Assets" FontSize="11" Style="{StaticResource TitleBtn}" Click="Close_Click"/>
+                                </StackPanel>
+                            </Grid>
+
+                            <!-- MAIN PANELS -->
+                            <Grid Grid.Row="1" Margin="24,6,24,20">
+
+                                <!-- TAB 1: LOCKED ITEMS -->
+                                <Grid x:Name="TabLockedPanel" Visibility="Visible">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="*"/>
+                                    </Grid.RowDefinitions>
+
+                                    <!-- Actions Bar (+ App, + Folder) -->
+                                    <Grid Grid.Row="0" Margin="0,0,0,14">
+                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                            <TextBlock x:Name="ItemCountText" Text="0 items locked" Foreground="{StaticResource TextDim}" FontSize="12" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                            <Button Content="+ App" Style="{StaticResource Btn}" Margin="0,0,8,0" Click="AddApp_Click"/>
+                                            <Button Content="+ Folder" Style="{StaticResource Btn}" Click="AddFolder_Click"/>
+                                        </StackPanel>
+                                    </Grid>
+
+                                    <!-- Items List Card -->
+                                    <Border Grid.Row="1" Background="{StaticResource CardBg}" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="12">
+                                        <Grid>
+                                            <ListBox x:Name="ItemList" Background="Transparent" BorderThickness="0"
+                                                     ScrollViewer.VerticalScrollBarVisibility="Auto"
+                                                     ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                                                <ListBox.ItemContainerStyle>
+                                                    <Style TargetType="ListBoxItem">
+                                                        <Setter Property="Template">
+                                                            <Setter.Value>
+                                                                <ControlTemplate TargetType="ListBoxItem">
+                                                                    <Border x:Name="Bd" Background="Transparent" Padding="14,9" BorderBrush="{StaticResource LineMuted}" BorderThickness="0,0,0,1">
+                                                                        <ContentPresenter/>
+                                                                    </Border>
+                                                                    <ControlTemplate.Triggers>
+                                                                        <Trigger Property="IsMouseOver" Value="True">
+                                                                            <Setter TargetName="Bd" Property="Background" Value="#171724"/>
+                                                                        </Trigger>
+                                                                    </ControlTemplate.Triggers>
+                                                                </ControlTemplate>
+                                                            </Setter.Value>
+                                                        </Setter>
+                                                    </Style>
+                                                </ListBox.ItemContainerStyle>
+                                                <ListBox.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <Grid ToolTip="{Binding Path}">
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="Auto"/>
+                                                                <ColumnDefinition Width="*"/>
+                                                                <ColumnDefinition Width="Auto"/>
+                                                                <ColumnDefinition Width="Auto"/>
+                                                            </Grid.ColumnDefinitions>
+
+                                                            <!-- App / Folder Icon Box -->
+                                                            <Border Width="34" Height="34" CornerRadius="8" Background="#161624" BorderBrush="#222232" BorderThickness="1" Margin="0,0,12,0" VerticalAlignment="Center">
+                                                                <Grid HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                                    <Image Source="{Binding IconSource}" Width="22" Height="22"
+                                                                           RenderOptions.BitmapScalingMode="HighQuality"
+                                                                           Visibility="{Binding IconVisibility}"/>
+                                                                    <TextBlock Text="&#xED25;" FontFamily="Segoe MDL2 Assets" FontSize="15"
+                                                                               Foreground="#FFFFFF"
+                                                                               Visibility="{Binding FolderIconVisibility}"/>
+                                                                </Grid>
+                                                            </Border>
+
+                                                            <!-- Name & Path -->
+                                                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                                <TextBlock Text="{Binding Name}" Foreground="{StaticResource TextMain}" FontSize="13" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                                                                <TextBlock Text="{Binding Path}" Foreground="{StaticResource TextDim}" FontSize="11" TextTrimming="CharacterEllipsis" Margin="0,1,0,0"/>
+                                                            </StackPanel>
+
+                                                            <!-- Type Badge -->
+                                                            <Border Grid.Column="2" Background="{Binding BadgeBackground}" CornerRadius="4" Padding="6,2" Margin="12,0" VerticalAlignment="Center">
+                                                                <TextBlock Text="{Binding TypeLabel}" Foreground="{Binding BadgeForeground}" FontSize="10" FontWeight="SemiBold"/>
+                                                            </Border>
+
+                                                            <!-- Remove Button -->
+                                                            <Button Grid.Column="3" Content="&#xE711;" FontFamily="Segoe MDL2 Assets" FontSize="10"
+                                                                    Style="{StaticResource TitleBtn}" ToolTip="Remove lock"
+                                                                    Click="RemoveItem_Click" Tag="{Binding Path}"/>
+                                                        </Grid>
+                                                    </DataTemplate>
+                                                </ListBox.ItemTemplate>
+                                            </ListBox>
+
+                                            <!-- Empty State -->
+                                            <StackPanel x:Name="EmptyState" VerticalAlignment="Center" HorizontalAlignment="Center" Visibility="Collapsed">
+                                                <TextBlock Text="&#xE72E;" FontFamily="Segoe MDL2 Assets" FontSize="28" Foreground="{StaticResource TextMuted}" HorizontalAlignment="Center" Margin="0,0,0,8"/>
+                                                <TextBlock Text="Kono app ba folder lock kora nai" Foreground="{StaticResource TextDim}" FontSize="13" FontWeight="SemiBold" HorizontalAlignment="Center"/>
+                                                <TextBlock Text="Uporer '+ App' ba '+ Folder' button die shuru koro." Foreground="{StaticResource TextMuted}" FontSize="11.5" HorizontalAlignment="Center" Margin="0,4,0,0"/>
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+                                </Grid>
+
+                                <!-- TAB 2: SECURITY & PASS -->
+                                <ScrollViewer x:Name="TabSecurityPanel" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
+                                    <StackPanel>
+                                        <!-- Master Password Section -->
+                                        <TextBlock Text="MASTER PASSWORD" Foreground="{StaticResource TextMuted}" FontSize="11" FontWeight="Bold" Margin="0,0,0,8"/>
+                                        <Border Background="{StaticResource CardBg}" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="12" Padding="18,14" Margin="0,0,0,20">
+                                            <StackPanel>
+                                                <TextBlock Text="Change Master Password" Foreground="{StaticResource TextMain}" FontSize="13.5" FontWeight="SemiBold"/>
+                                                <TextBlock Text="Notun password dile ager sob locked folder notun password diye protect hobe." Foreground="{StaticResource TextDim}" FontSize="11.5" Margin="0,2,0,14"/>
+
+                                                <Grid Margin="0,0,0,8">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="140"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Text="Current Password" Foreground="{StaticResource TextDim}" FontSize="12" VerticalAlignment="Center"/>
+                                                    <PasswordBox x:Name="OldPwBox" Grid.Column="1"/>
+                                                </Grid>
+
+                                                <Grid Margin="0,0,0,8">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="140"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Text="New Password (min 4)" Foreground="{StaticResource TextDim}" FontSize="12" VerticalAlignment="Center"/>
+                                                    <PasswordBox x:Name="NewPwBox" Grid.Column="1"/>
+                                                </Grid>
+
+                                                <Grid Margin="0,0,0,12">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="140"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Text="Confirm New Password" Foreground="{StaticResource TextDim}" FontSize="12" VerticalAlignment="Center"/>
+                                                    <PasswordBox x:Name="ConfirmPwBox" Grid.Column="1"/>
+                                                </Grid>
+
+                                                <TextBlock x:Name="PassStatusMsg" Foreground="#10B981" FontSize="11.5" Visibility="Collapsed" Margin="0,0,0,10"/>
+
+                                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                                    <Button Content="Update Password" Style="{StaticResource AccentBtn}" Click="UpdatePassword_Click"/>
+                                                </StackPanel>
+                                            </StackPanel>
+                                        </Border>
+
+                                        <!-- Emergency Recovery -->
+                                        <TextBlock Text="EMERGENCY RECOVERY" Foreground="{StaticResource TextMuted}" FontSize="11" FontWeight="Bold" Margin="0,0,0,8"/>
+                                        <Border Background="{StaticResource CardBg}" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="12" Padding="18,14">
+                                            <StackPanel>
+                                                <TextBlock Text="Emergency Recovery Key" Foreground="{StaticResource TextMain}" FontSize="13.5" FontWeight="SemiBold"/>
+                                                <TextBlock Text="Password bhule gele shudhu matro ei Recovery Key diye data restore kora jabe." Foreground="{StaticResource TextDim}" FontSize="11.5" Margin="0,2,0,12"/>
+
+                                                <Grid Margin="0,0,0,10">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBox x:Name="RecoveryKeyDisplay" IsReadOnly="True" Text="••••-••••-••••-••••-••••"
+                                                             Background="#0E0E16" Foreground="#4EC9B0" FontWeight="Bold" Height="38"/>
+                                                    <Button Grid.Column="1" Content="Reveal / Copy" Style="{StaticResource Btn}" Margin="8,0,0,0" Click="RevealRecoveryKey_Click"/>
+                                                </Grid>
+                                            </StackPanel>
+                                        </Border>
+                                    </StackPanel>
+                                </ScrollViewer>
+
+                                <!-- TAB 3: PHONE LINK -->
+                                <ScrollViewer x:Name="TabPhonePanel" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
+                                    <StackPanel>
+                                        <!-- Paired Device Section -->
+                                        <TextBlock Text="PAIRED DEVICE" Foreground="{StaticResource TextMuted}" FontSize="11" FontWeight="Bold" Margin="0,0,0,8"/>
+                                        
+                                        <!-- Paired Device Card -->
+                                        <Border Background="{StaticResource CardBg}" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="12" Padding="16,12" Margin="0,0,0,16">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+
+                                                <!-- Phone Icon Box -->
+                                                <Border Width="40" Height="40" CornerRadius="10" Background="#181826" BorderBrush="#26263A" BorderThickness="1" Margin="0,0,14,0" VerticalAlignment="Center">
+                                                    <TextBlock Text="&#xE8EA;" FontFamily="Segoe MDL2 Assets" FontSize="18" Foreground="#FFFFFF" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                </Border>
+
+                                                <!-- Device Details -->
+                                                <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="0,0,12,0">
+                                                    <TextBlock x:Name="PhoneDeviceName" Text="No Phone Paired" Foreground="{StaticResource TextMain}" FontSize="13.5" FontWeight="SemiBold"/>
+                                                    <TextBlock x:Name="PhoneStatusDetail" Text="Pair your Android companion app to unlock via Fingerprint &amp; Face." Foreground="{StaticResource TextDim}" FontSize="11.5" Margin="0,2,0,0"/>
+                                                </StackPanel>
+
+                                                <!-- Pair / Unpair Action -->
+                                                <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                                    <Button x:Name="SyncBiometricBtn" Content="Sync Key" Style="{StaticResource Btn}" Margin="0,0,8,0" Visibility="Collapsed" Click="SyncBiometric_Click"/>
+                                                    <Button x:Name="PhonePairBtn" Content="Pair New Phone" Style="{StaticResource AccentBtn}" Click="StartPhonePair_Click"/>
+                                                </StackPanel>
+                                            </Grid>
+                                        </Border>
+
+                                        <!-- Connection & Security Rules -->
+                                        <TextBlock Text="CONNECTIVITY &amp; SECURITY RULES" Foreground="{StaticResource TextMuted}" FontSize="11" FontWeight="Bold" Margin="0,0,0,8"/>
+                                        <Border Background="{StaticResource CardBg}" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="12">
+                                            <StackPanel>
+                                                <!-- Rule 1: Same WiFi -->
+                                                <Border Padding="16,12" BorderBrush="{StaticResource LineMuted}" BorderThickness="0,0,0,1">
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="*"/>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                        </Grid.ColumnDefinitions>
+                                                        <StackPanel VerticalAlignment="Center" Margin="0,0,12,0">
+                                                            <TextBlock Text="Require Same Wi-Fi Connection" Foreground="{StaticResource TextMain}" FontSize="13" FontWeight="SemiBold"/>
+                                                            <TextBlock Text="PC ebong phone aki local Wi-Fi router e thaklei shudhu biometric request kaj korbe." Foreground="{StaticResource TextDim}" FontSize="11" Margin="0,2,0,0"/>
+                                                        </StackPanel>
+                                                        <CheckBox x:Name="ToggleSameWiFi" Grid.Column="1" Style="{StaticResource ToggleSwitch}" Checked="PhoneSetting_Changed" Unchecked="PhoneSetting_Changed"/>
+                                                    </Grid>
+                                                </Border>
+
+                                                <!-- Rule 2: Bluetooth Proximity -->
+                                                <Border Padding="16,12" BorderBrush="{StaticResource LineMuted}" BorderThickness="0,0,0,1">
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="*"/>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                        </Grid.ColumnDefinitions>
+                                                        <StackPanel VerticalAlignment="Center" Margin="0,0,12,0">
+                                                            <TextBlock Text="Bluetooth Proximity Signal" Foreground="{StaticResource TextMain}" FontSize="13" FontWeight="SemiBold"/>
+                                                            <TextBlock Text="Wi-Fi chhara ba physical proximity te thakle Bluetooth die secure signal pathabe." Foreground="{StaticResource TextDim}" FontSize="11" Margin="0,2,0,0"/>
+                                                        </StackPanel>
+                                                        <CheckBox x:Name="ToggleBluetooth" Grid.Column="1" Style="{StaticResource ToggleSwitch}" Checked="PhoneSetting_Changed" Unchecked="PhoneSetting_Changed"/>
+                                                    </Grid>
+                                                </Border>
+
+                                                <!-- Rule 3: Biometric Auth Test -->
+                                                <Border Padding="16,12">
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="*"/>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                        </Grid.ColumnDefinitions>
+                                                        <StackPanel VerticalAlignment="Center" Margin="0,0,12,0">
+                                                            <TextBlock Text="Test Phone Biometric Unlock" Foreground="{StaticResource TextMain}" FontSize="13" FontWeight="SemiBold"/>
+                                                            <TextBlock Text="Phone e instant test notification &amp; fingerprint prompt pathiye check koro." Foreground="{StaticResource TextDim}" FontSize="11" Margin="0,2,0,0"/>
+                                                        </StackPanel>
+                                                        <Button Grid.Column="1" Content="Send Test Prompt" Style="{StaticResource Btn}" Click="TestPhoneAuth_Click"/>
+                                                    </Grid>
+                                                </Border>
+                                            </StackPanel>
+                                        </Border>
+                                    </StackPanel>
+                                </ScrollViewer>
+
+                                <!-- TAB 4: ABOUT & SYSTEM -->
+                                <ScrollViewer x:Name="TabAboutPanel" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
+                                    <StackPanel>
+                                        <!-- Integrations -->
+                                        <TextBlock Text="INTEGRATIONS &amp; DYNAMIC ISLAND" Foreground="{StaticResource TextMuted}" FontSize="11" FontWeight="Bold" Margin="0,0,0,8"/>
+                                        <Border Background="{StaticResource CardBg}" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="12" Margin="0,0,0,16" Padding="16,14">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+
+                                                <!-- Inex Island Icon Box -->
+                                                <Border Width="36" Height="36" CornerRadius="8" Background="#161624" BorderBrush="#222232" BorderThickness="1" Margin="0,0,14,0" VerticalAlignment="Center">
+                                                    <TextBlock Text="&#xE707;" FontFamily="Segoe MDL2 Assets" FontSize="16" Foreground="#FFFFFF" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                </Border>
+
+                                                <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="0,0,12,0">
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <TextBlock Text="Inex Island Dynamic Lock / Animations" Foreground="{StaticResource TextMain}" FontSize="13" FontWeight="SemiBold"/>
+                                                        <Border x:Name="IslandBadge" Background="#1B1B26" CornerRadius="4" Padding="5,1" Margin="8,0,0,0" VerticalAlignment="Center">
+                                                            <TextBlock x:Name="IslandBadgeText" Text="Active" Foreground="#10B981" FontSize="10" FontWeight="SemiBold"/>
+                                                        </Border>
+                                                    </StackPanel>
+                                                    <TextBlock Text="Unlock er shomoy Inex Island e dynamic face/fingerprint animation dekhabe." Foreground="{StaticResource TextDim}" FontSize="11" Margin="0,2,0,0"/>
+                                                </StackPanel>
+
+                                                <CheckBox x:Name="ToggleIsland" Grid.Column="2" Style="{StaticResource ToggleSwitch}" Checked="IslandToggle_Changed" Unchecked="IslandToggle_Changed"/>
+                                            </Grid>
+                                        </Border>
+
+                                        <!-- About App -->
+                                        <TextBlock Text="APPLICATION INFO" Foreground="{StaticResource TextMuted}" FontSize="11" FontWeight="Bold" Margin="0,0,0,8"/>
+                                        <Border Background="{StaticResource CardBg}" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="12" Margin="0,0,0,16">
+                                            <StackPanel>
+                                                <Border Padding="16,11" BorderBrush="{StaticResource LineMuted}" BorderThickness="0,0,0,1">
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="*"/>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                        </Grid.ColumnDefinitions>
+                                                        <TextBlock Text="Version" Foreground="{StaticResource TextDim}" FontSize="12"/>
+                                                        <TextBlock Grid.Column="1" Text="Locker PRO v2.0 (Build 2026.10)" Foreground="{StaticResource TextMain}" FontSize="12" FontWeight="SemiBold"/>
+                                                    </Grid>
+                                                </Border>
+
+                                                <Border Padding="16,11" BorderBrush="{StaticResource LineMuted}" BorderThickness="0,0,0,1">
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="*"/>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                        </Grid.ColumnDefinitions>
+                                                        <TextBlock Text="Developer &amp; GitHub Profile" Foreground="{StaticResource TextDim}" FontSize="12" VerticalAlignment="Center"/>
+                                                        <Button Grid.Column="1" Content="github.com/inrwxyz" Style="{StaticResource Btn}" Height="28" Padding="10,0" Click="OpenGitHub_Click"/>
+                                                    </Grid>
+                                                </Border>
+
+                                                <Border Padding="16,11">
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="*"/>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                        </Grid.ColumnDefinitions>
+                                                        <TextBlock Text="Security Architecture" Foreground="{StaticResource TextDim}" FontSize="12"/>
+                                                        <TextBlock Grid.Column="1" Text=".NET 10.0 WPF • Native ACL &amp; AES-GCM" Foreground="{StaticResource TextMain}" FontSize="12"/>
+                                                    </Grid>
+                                                </Border>
+                                            </StackPanel>
+                                        </Border>
+
+                                        <!-- Danger Zone -->
+                                        <TextBlock Text="DANGER ZONE" Foreground="#FF453A" FontSize="11" FontWeight="Bold" Margin="0,0,0,8"/>
+                                        <Border Background="{StaticResource DangerBg}" BorderBrush="#3A1720" BorderThickness="1" CornerRadius="12" Padding="16,14">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                <StackPanel VerticalAlignment="Center" Margin="0,0,12,0">
+                                                    <TextBlock Text="Uninstall Locker Cleanly" Foreground="#FF453A" FontSize="13" FontWeight="SemiBold"/>
+                                                    <TextBlock Text="Shob folder auto-decrypt kore, context menu, shortcuts &amp; background tasks clean kore uninstall korbe." Foreground="{StaticResource TextDim}" FontSize="11" Margin="0,2,0,0"/>
+                                                </StackPanel>
+                                                <Button Grid.Column="1" Content="Uninstall Locker" Style="{StaticResource DangerBtn}" Click="StartUninstall_Click"/>
+                                            </Grid>
+                                        </Border>
+                                    </StackPanel>
+                                </ScrollViewer>
+                                <!-- TAB 5: PORTABLE VAULT LOCKER -->
+                                <Grid x:Name="TabVaultPanel" Visibility="Collapsed">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="*"/>
+                                    </Grid.RowDefinitions>
+
+                                    <!-- Vault Action Card (Manual Selection) -->
+                                    <StackPanel Grid.Row="0" Margin="0,0,0,16">
+                                        <Border Background="#0C0D17" BorderBrush="#20202E" BorderThickness="1" CornerRadius="12" Padding="24,20" Margin="0,0,0,14">
+                                            <StackPanel HorizontalAlignment="Center">
+                                                <Border Width="48" Height="48" CornerRadius="12" Background="#141E33" BorderBrush="#2563EB" BorderThickness="1" HorizontalAlignment="Center" Margin="0,0,0,10">
+                                                    <TextBlock Text="&#xEDA2;" FontFamily="Segoe MDL2 Assets" FontSize="22" Foreground="#60A5FA" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                </Border>
+                                                <TextBlock Text="Portable Password Vault" Foreground="{StaticResource TextMain}" FontSize="15" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,4"/>
+                                                <TextBlock Text="Choose any folder to encrypt in-place with its own password. Take it anywhere on a pendrive and open it on any PC." Foreground="{StaticResource TextDim}" FontSize="12" HorizontalAlignment="Center" Margin="0,0,0,14" TextAlignment="Center"/>
+                                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                                    <Button Content="Browse Folder to Lock" Style="{StaticResource AccentBtn}" Height="32" Padding="16,0" Click="VaultBrowseLock_Click" Margin="0,0,10,0"/>
+                                                    <Button Content="Open / Unlock Existing Vault" Style="{StaticResource Btn}" Height="32" Padding="16,0" Click="VaultBrowseUnlock_Click"/>
+                                                </StackPanel>
+                                            </StackPanel>
+                                        </Border>
+
+                                        <TextBlock Text="MANAGED VAULTS (THIS PC &amp; CONNECTED DRIVES)" Foreground="{StaticResource TextMuted}" FontSize="11" FontWeight="Bold" Margin="2,0,0,0"/>
+                                    </StackPanel>
+
+                                    <!-- Vaults List -->
+                                    <ListBox x:Name="VaultListBox" Grid.Row="1" Background="Transparent" BorderThickness="0"
+                                             ScrollViewer.VerticalScrollBarVisibility="Auto" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                                        <ListBox.ItemContainerStyle>
+                                            <Style TargetType="ListBoxItem">
+                                                <Setter Property="Template">
+                                                    <Setter.Value>
+                                                        <ControlTemplate TargetType="ListBoxItem">
+                                                            <Border x:Name="Bd" Background="{StaticResource CardBg}" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="10" Padding="14,10" Margin="0,0,0,8">
+                                                                <ContentPresenter/>
+                                                            </Border>
+                                                            <ControlTemplate.Triggers>
+                                                                <Trigger Property="IsMouseOver" Value="True">
+                                                                    <Setter TargetName="Bd" Property="BorderBrush" Value="#3B82F6"/>
+                                                                </Trigger>
+                                                            </ControlTemplate.Triggers>
+                                                        </ControlTemplate>
+                                                    </Setter.Value>
+                                                </Setter>
+                                            </Style>
+                                        </ListBox.ItemContainerStyle>
+                                        <ListBox.ItemTemplate>
+                                            <DataTemplate>
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    
+                                                    <Border Width="36" Height="36" CornerRadius="8" Background="#161624" BorderBrush="#26263A" BorderThickness="1" Margin="0,0,12,0" VerticalAlignment="Center">
+                                                        <TextBlock Text="&#xEDA2;" FontFamily="Segoe MDL2 Assets" FontSize="18" Foreground="#60A5FA" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                    </Border>
+                                                    
+                                                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="0,0,10,0">
+                                                        <StackPanel Orientation="Horizontal">
+                                                            <TextBlock Text="{Binding FolderName}" Foreground="{StaticResource TextMain}" FontSize="13.5" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                                                            <Border Background="{Binding StatusBadgeBg}" CornerRadius="4" Padding="6,1" Margin="8,0,0,0" VerticalAlignment="Center">
+                                                                <TextBlock Text="{Binding StatusText}" Foreground="{Binding StatusTextFg}" FontSize="10" FontWeight="Bold"/>
+                                                            </Border>
+                                                        </StackPanel>
+                                                        <TextBlock Text="{Binding FolderPath}" Foreground="{StaticResource TextDim}" FontSize="11" Margin="0,3,0,0" TextTrimming="CharacterEllipsis"/>
+                                                    </StackPanel>
+                                                    
+                                                    <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                                                        <Button Content="{Binding ActionButtonText}" Style="{StaticResource AccentBtn}" Height="30" Padding="12,0" Margin="0,0,8,0" Tag="{Binding}" Click="VaultAction_Click"/>
+                                                        <Button Content="&#xE711;" FontFamily="Segoe MDL2 Assets" FontSize="10" Style="{StaticResource TitleBtn}" ToolTip="Remove from list" Tag="{Binding}" Click="VaultRemoveList_Click"/>
+                                                    </StackPanel>
+                                                </Grid>
+                                            </DataTemplate>
+                                        </ListBox.ItemTemplate>
+                                    </ListBox>
+                                </Grid>
+
+                            </Grid>
+                        </Grid>
+                    </Grid>
+
+                    <!-- ================= OVERLAYS ================= -->
+
+                    <!-- 1. SELECT APP PICKER OVERLAY -->
+                    <Border x:Name="PickerOverlay" Visibility="Collapsed" Background="#E6050508">
+                        <Border CornerRadius="12" Background="#0C0C14" BorderBrush="{StaticResource Line}" BorderThickness="1"
+                                Width="400" Height="500" VerticalAlignment="Center" HorizontalAlignment="Center" Padding="18">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+
+                                <Grid Grid.Row="0" Margin="0,0,0,10">
+                                    <TextBlock Text="Kon app lock korbe?" Foreground="{StaticResource TextMain}" FontSize="14.5" FontWeight="SemiBold"/>
+                                    <Button Content="&#xE711;" FontFamily="Segoe MDL2 Assets" FontSize="11" Style="{StaticResource TitleBtn}"
+                                            HorizontalAlignment="Right" Click="PickerCancel_Click"/>
+                                </Grid>
+
+                                <TextBox x:Name="PickerSearch" Grid.Row="1" Margin="0,0,0,6" TextChanged="PickerSearch_Changed"/>
+                                <TextBlock x:Name="PickerStatus" Grid.Row="2" Foreground="{StaticResource TextDim}" FontSize="11.5" Margin="2,0,0,8"/>
+
+                                <ListBox x:Name="AppList" Grid.Row="3" Background="Transparent" BorderThickness="0"
+                                         ScrollViewer.VerticalScrollBarVisibility="Auto"
+                                         ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                         MouseDoubleClick="AppList_DoubleClick">
+                                    <ListBox.ItemContainerStyle>
+                                        <Style TargetType="ListBoxItem">
+                                            <Setter Property="Template">
+                                                <Setter.Value>
+                                                    <ControlTemplate TargetType="ListBoxItem">
+                                                        <Border x:Name="Bd" Background="Transparent" CornerRadius="8" Padding="10,6" Margin="0,0,0,2">
+                                                            <ContentPresenter/>
+                                                        </Border>
+                                                        <ControlTemplate.Triggers>
+                                                            <Trigger Property="IsMouseOver" Value="True">
+                                                                <Setter TargetName="Bd" Property="Background" Value="#171726"/>
+                                                            </Trigger>
+                                                            <Trigger Property="IsSelected" Value="True">
+                                                                <Setter TargetName="Bd" Property="Background" Value="#24243A"/>
+                                                            </Trigger>
+                                                        </ControlTemplate.Triggers>
+                                                    </ControlTemplate>
+                                                </Setter.Value>
+                                            </Setter>
+                                        </Style>
+                                    </ListBox.ItemContainerStyle>
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <Grid ToolTip="{Binding Path}">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                </Grid.ColumnDefinitions>
+                                                <Border Width="28" Height="28" CornerRadius="6" Background="#161624" BorderBrush="#222232" BorderThickness="1" Margin="0,0,10,0" VerticalAlignment="Center">
+                                                    <Image Source="{Binding IconSource}" Width="20" Height="20"
+                                                           RenderOptions.BitmapScalingMode="HighQuality" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                </Border>
+                                                <TextBlock Grid.Column="1" Text="{Binding Name}" Foreground="{StaticResource TextMain}"
+                                                           FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"
+                                                           TextTrimming="CharacterEllipsis"/>
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+
+                                <Grid Grid.Row="4" Margin="0,12,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="8"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Button Content="Browse .exe" Style="{StaticResource Btn}" Click="PickerBrowse_Click"/>
+                                    <Button Grid.Column="2" Content="Cancel" Style="{StaticResource Btn}" Width="75" Click="PickerCancel_Click"/>
+                                    <Button Grid.Column="4" Content="Lock" Style="{StaticResource AccentBtn}" Width="75" Click="PickerLock_Click"/>
+                                </Grid>
+                            </Grid>
+                        </Border>
+                    </Border>
+
+                    <!-- 2. FIRST-TIME SETUP OVERLAY -->
+                    <Border x:Name="SetupOverlay" Visibility="Collapsed" Background="#E6050508">
+                        <Border CornerRadius="12" Background="#0C0C14" BorderBrush="{StaticResource Line}" BorderThickness="1"
+                                Width="360" VerticalAlignment="Center" HorizontalAlignment="Center" Padding="22">
+                            <StackPanel>
+                                <Grid Margin="0,0,0,10">
+                                    <TextBlock Text="Welcome to Locker" Foreground="{StaticResource TextMain}" FontSize="15.5" FontWeight="SemiBold"
+                                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    <Button Content="&#xE711;" FontFamily="Segoe MDL2 Assets" FontSize="11" Style="{StaticResource TitleBtn}"
+                                            HorizontalAlignment="Right" Click="SetupCancel_Click" ToolTip="Close Locker"/>
+                                </Grid>
+                                
+                                <TextBlock Text="Prothom bar ekta Master Password set koro." Foreground="{StaticResource TextDim}"
+                                           FontSize="12" HorizontalAlignment="Center" Margin="0,0,0,14" TextWrapping="Wrap" TextAlignment="Center"/>
+
+                                <StackPanel x:Name="SetupInputPanel">
+                                    <TextBlock Text="Master Password (min 10)" Foreground="{StaticResource TextDim}" FontSize="11.5" Margin="0,0,0,4"/>
+                                    <PasswordBox x:Name="SetupPw1" Margin="0,0,0,10"/>
+                                    <TextBlock Text="Abar Master Password" Foreground="{StaticResource TextDim}" FontSize="11.5" Margin="0,0,0,4"/>
+                                    <PasswordBox x:Name="SetupPw2" Margin="0,0,0,12"/>
+                                    <TextBlock Text="Kompokkhe 10 character: boro hater (A-Z), choto hater (a-z), number (0-9) ebong special character (! @ # $ ...) lagbe." Foreground="#8E8EA0" FontSize="11" Margin="0,0,0,8" TextWrapping="Wrap"/>
+                                    <TextBlock x:Name="SetupError" Foreground="#FF453A" FontSize="11.5" Margin="0,0,0,8" Visibility="Collapsed" TextWrapping="Wrap"/>
+                                    
+                                    <Button Content="Create Password" Style="{StaticResource AccentBtn}" Height="36" Click="SetupCreate_Click"/>
+                                    <Button Content="Cancel &amp; Exit" Style="{StaticResource Btn}" Height="34" Margin="0,8,0,0" Click="SetupCancel_Click"/>
+                                </StackPanel>
+
+                                <StackPanel x:Name="SetupSuccessPanel" Visibility="Collapsed">
+                                    <TextBlock Text="RECOVERY KEY (likhe rakho):" Foreground="#4EC9B0" FontSize="12" FontWeight="SemiBold" Margin="0,0,0,6"/>
+                                    <TextBox x:Name="SetupRecoveryKeyText" IsReadOnly="True" Height="40" Background="#161624" Foreground="#4EC9B0" FontSize="13" FontWeight="Bold"/>
+                                    <TextBlock Text="Password bhule gele shudhu eta diye data recover hobe. Eta kothao safe rakho!" Foreground="{StaticResource TextDim}" FontSize="11.5" Margin="0,6,0,14" TextWrapping="Wrap"/>
+                                    <Button Content="Got it, Start using Locker" Style="{StaticResource AccentBtn}" Height="36" Click="SetupDone_Click"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+                    </Border>
+
+                    <!-- 3. PHONE PAIRING OVERLAY -->
+                    <Border x:Name="PairingOverlay" Visibility="Collapsed" Background="#E6050508">
+                        <Border CornerRadius="12" Background="#0C0C14" BorderBrush="{StaticResource Line}" BorderThickness="1"
+                                Width="380" VerticalAlignment="Center" HorizontalAlignment="Center" Padding="22">
+                            <StackPanel HorizontalAlignment="Center">
+                                <Grid Width="336" Margin="0,0,0,12">
+                                    <TextBlock Text="Pair Phone Companion" Foreground="{StaticResource TextMain}" FontSize="15" FontWeight="SemiBold" HorizontalAlignment="Center"/>
+                                    <Button Content="&#xE711;" FontFamily="Segoe MDL2 Assets" FontSize="11" Style="{StaticResource TitleBtn}" HorizontalAlignment="Right" Click="PairingCancel_Click"/>
+                                </Grid>
+                                
+                                <TextBlock Text="Open Locker Companion on your phone and scan this QR code:" Foreground="{StaticResource TextDim}" FontSize="12" HorizontalAlignment="Center" Margin="0,0,0,14" TextWrapping="Wrap" TextAlignment="Center"/>
+
+                                <!-- Big PIN Display -->
+                                <Border Background="#FFFFFF" BorderBrush="#303046" BorderThickness="1" CornerRadius="12" Padding="10" HorizontalAlignment="Center" Margin="0,0,0,14" Width="240" Height="240">
+                                    <Image x:Name="PairingQrImage" Width="216" Height="216" Stretch="Uniform" RenderOptions.BitmapScalingMode="NearestNeighbor"/>
+                                </Border>
+
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,18">
+                                    <TextBlock Text="Local IP: " Foreground="{StaticResource TextMuted}" FontSize="11.5"/>
+                                    <TextBlock x:Name="PairingIpText" Text="127.0.0.1:58820" Foreground="{StaticResource TextDim}" FontSize="11.5" FontWeight="SemiBold"/>
+                                </StackPanel>
+
+                                <Button Content="Cancel" Style="{StaticResource Btn}" Width="100" HorizontalAlignment="Center" Click="PairingCancel_Click"/>
+                            </StackPanel>
+                        </Border>
+                    </Border>
+
+                    <!-- 4. UNINSTALL CONFIRMATION OVERLAY -->
+                    <Border x:Name="UninstallOverlay" Visibility="Collapsed" Background="#E6050508">
+                        <Border CornerRadius="12" Background="#120A0E" BorderBrush="#521D28" BorderThickness="1"
+                                Width="360" VerticalAlignment="Center" HorizontalAlignment="Center" Padding="22">
+                            <StackPanel>
+                                <TextBlock Text="Confirm Locker Uninstall" Foreground="#FF453A" FontSize="15" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,0,0,6"/>
+                                <TextBlock Text="Shob locked folder auto-decrypt hoye jabe ebong Locker system theke shob delete hobe. Continue korte Master Password dao:" Foreground="{StaticResource TextDim}" FontSize="11.5" TextWrapping="Wrap" Margin="0,0,0,14"/>
+
+                                <PasswordBox x:Name="UninstallPwBox" Margin="0,0,0,10"/>
+                                <TextBlock x:Name="UninstallError" Foreground="#FF453A" FontSize="11.5" Visibility="Collapsed" Margin="0,0,0,10"/>
+
+                                <Grid Margin="0,4,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="8"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Button Content="Cancel" Style="{StaticResource Btn}" Click="UninstallCancel_Click"/>
+                                    <Button Grid.Column="2" Content="Uninstall" Style="{StaticResource DangerBtn}" Click="ConfirmUninstall_Click"/>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+                    </Border>
+
+                    
+                    <!-- 5. VAULT CREATE / LOCK OVERLAY -->
+                    <Border x:Name="VaultCreateOverlay" Visibility="Collapsed" Background="#F0000000">
+                        <Border CornerRadius="12" Background="#09090D" BorderBrush="#20202C" BorderThickness="1"
+                                Width="440" VerticalAlignment="Center" HorizontalAlignment="Center" Padding="22">
+                            <StackPanel>
+                                <Grid Margin="0,0,0,14">
+                                    <TextBlock x:Name="VaultCreateTitle" Text="Lock Folder with Password" Foreground="#FFFFFF" FontSize="15" FontWeight="SemiBold"/>
+                                    <Button Content="&#xE711;" FontFamily="Segoe MDL2 Assets" FontSize="11" Style="{StaticResource TitleBtn}" HorizontalAlignment="Right" Click="VaultCreateCancel_Click"/>
+                                </Grid>
+
+                                <TextBlock Text="Folder:" Foreground="{StaticResource TextMuted}" FontSize="11" FontWeight="Bold" Margin="0,0,0,4"/>
+                                <TextBox x:Name="VaultCreateFolderPath" IsReadOnly="True" Margin="0,0,0,10"/>
+
+                                <TextBlock x:Name="VaultCreateNote" Text="Ei folder-er shob file ei jaygatei encrypt hoye (.locked) hobe, original file thakbe na. Password bhule gele file ar fire pawa jabe na." Foreground="#FBBF24" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,12"/>
+
+                                <TextBlock x:Name="VaultCreatePwLabel1" Text="Vault Password (independent from Locker Pro):" Foreground="{StaticResource TextDim}" FontSize="11.5" Margin="0,0,0,4"/>
+                                <PasswordBox x:Name="VaultCreatePw1" Margin="0,0,0,10"/>
+
+                                <StackPanel x:Name="VaultCreatePw2Panel">
+                                    <TextBlock Text="Confirm Vault Password:" Foreground="{StaticResource TextDim}" FontSize="11.5" Margin="0,0,0,4"/>
+                                    <PasswordBox x:Name="VaultCreatePw2" Margin="0,0,0,14"/>
+                                </StackPanel>
+
+                                <TextBlock x:Name="VaultCreateError" Foreground="#FF453A" FontSize="11.5" Margin="0,0,0,10" Visibility="Collapsed" TextWrapping="Wrap"/>
+
+                                <StackPanel x:Name="VaultCreateProgressPanel" Visibility="Collapsed" Margin="0,0,0,12">
+                                    <ProgressBar x:Name="VaultCreateProgressBar" Height="6" Background="#161624" Foreground="#3B82F6" Value="0" Maximum="100" Margin="0,0,0,6"/>
+                                    <TextBlock x:Name="VaultCreateProgressText" Text="Encrypting files..." Foreground="{StaticResource TextDim}" FontSize="11.5" HorizontalAlignment="Center"/>
+                                </StackPanel>
+
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Button Content="Cancel" Style="{StaticResource Btn}" Height="34" Width="90" Click="VaultCreateCancel_Click"/>
+                                    <Button x:Name="BtnVaultCreateConfirm" Grid.Column="1" Content="Encrypt &amp; Lock" Style="{StaticResource AccentBtn}" Height="34" Width="150" Click="VaultCreateConfirm_Click"/>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+                    </Border>
+
+                    <!-- 6. VAULT UNLOCK OVERLAY -->
+                    <Border x:Name="VaultUnlockOverlay" Visibility="Collapsed" Background="#E6050508">
+                        <Border CornerRadius="12" Background="#0C0C14" BorderBrush="{StaticResource Line}" BorderThickness="1"
+                                Width="400" VerticalAlignment="Center" HorizontalAlignment="Center" Padding="22">
+                            <StackPanel>
+                                <Grid Margin="0,0,0,14">
+                                    <TextBlock x:Name="VaultUnlockTitle" Text="Unlock Portable Vault" Foreground="{StaticResource TextMain}" FontSize="15" FontWeight="SemiBold"/>
+                                    <Button Content="&#xE711;" FontFamily="Segoe MDL2 Assets" FontSize="11" Style="{StaticResource TitleBtn}" HorizontalAlignment="Right" Click="VaultUnlockCancel_Click"/>
+                                </Grid>
+                                
+                                <TextBlock x:Name="VaultUnlockFolderText" Text="Folder: ..." Foreground="{StaticResource TextDim}" FontSize="11.5" Margin="0,0,0,14" TextTrimming="CharacterEllipsis"/>
+                                
+                                <TextBlock Text="Enter Vault Password:" Foreground="{StaticResource TextDim}" FontSize="11.5" Margin="0,0,0,4"/>
+                                <PasswordBox x:Name="VaultUnlockPw" Margin="0,0,0,12"/>
+                                
+                                <Button x:Name="BtnVaultUnlockPw" Content="Unlock with Password" Style="{StaticResource AccentBtn}" Height="34" Margin="0,0,0,12" Click="VaultUnlockPw_Click"/>
+                                
+                                <TextBlock x:Name="VaultUnlockError" Foreground="#FF453A" FontSize="11.5" Margin="0,0,0,10" Visibility="Collapsed" TextWrapping="Wrap"/>
+                                
+                                <StackPanel x:Name="VaultUnlockProgressPanel" Visibility="Collapsed" Margin="0,0,0,12">
+                                    <ProgressBar x:Name="VaultUnlockProgressBar" Height="6" Background="#161624" Foreground="#10B981" Value="0" Maximum="100" Margin="0,0,0,6"/>
+                                    <TextBlock x:Name="VaultUnlockProgressText" Text="Decrypting files..." Foreground="{StaticResource TextDim}" FontSize="11.5" HorizontalAlignment="Center"/>
+                                </StackPanel>
+                                
+                                <Button Content="Cancel" Style="{StaticResource Btn}" Height="32" Width="90" HorizontalAlignment="Center" Click="VaultUnlockCancel_Click"/>
+                            </StackPanel>
+                        </Border>
+                    </Border>
+
+</Grid>
+            </Border>
+        </Border>
+    </Grid>
+</Window>

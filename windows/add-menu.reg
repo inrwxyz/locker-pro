@@ -1,0 +1,22 @@
+Windows Registry Editor Version 5.00
+
+[HKEY_CURRENT_USER\Software\Classes\Directory\shell\LockerLock]
+@="Lock with Locker"
+"Icon"="C:\\Dev\\AppLocker\\lock.ico"
+
+[HKEY_CURRENT_USER\Software\Classes\Directory\shell\LockerLock\command]
+@="\"C:\\Dev\\AppLocker\\src\\AppLocker.Launch\\bin\\Debug\\net10.0-windows\\AppLocker.Launch.exe\" lock \"%1\""
+
+[HKEY_CURRENT_USER\Software\Classes\exefile\shell\LockerLockApp]
+@="Lock app with Locker"
+"Icon"="C:\\Dev\\AppLocker\\lock.ico"
+
+[HKEY_CURRENT_USER\Software\Classes\exefile\shell\LockerLockApp\command]
+@="\"C:\\Dev\\AppLocker\\src\\AppLocker.Launch\\bin\\Debug\\net10.0-windows\\AppLocker.Launch.exe\" lockapp \"%1\""
+
+[HKEY_CURRENT_USER\Software\Classes\lnkfile\shell\LockerLockApp]
+@="Lock app with Locker"
+"Icon"="C:\\Dev\\AppLocker\\lock.ico"
+
+[HKEY_CURRENT_USER\Software\Classes\lnkfile\shell\LockerLockApp\command]
+@="\"C:\\Dev\\AppLocker\\src\\AppLocker.Launch\\bin\\Debug\\net10.0-windows\\AppLocker.Launch.exe\" lockapp \"%1\""

@@ -1,0 +1,75 @@
+# ---- Locker Pro (.NET / WPF) ----
+
+# Build output
+[Bb]in/
+[Oo]bj/
+[Dd]ebug/
+[Rr]elease/
+[Rr]eleases/
+x64/
+x86/
+publish/
+dist/
+dist_*/
+installer_out/
+release/
+
+# The installer embeds this; build_package.ps1 regenerates it every time
+src/AppLocker.Installer/payload.zip
+
+# Compiled / packaged artifacts
+*.exe
+*.dll
+*.pdb
+*.msi
+*.zip
+*.nupkg
+Locker-Setup.exe
+
+# Visual Studio / VS Code / Rider
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+*.rsuser
+*.userprefs
+*.DotSettings.user
+*.csproj.user
+
+# Logs, dumps and temp files
+*.log
+*.tmp
+*.temp
+*.bak
+*.dmp
+TestResults/
+~$*
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Secrets / local config (never commit)
+.env
+.env.*
+*.pfx
+*.snk
+*.key
+*.pem
+*.p12
+*.jks
+*.keystore
+local.properties
+
+# Locker runtime data (lives in C:\ProgramData\AppLocker, but never commit a copy by accident)
+config.json
+settings.json
+lockout.json
+biometric.*
+items.json
+apps.json
+*.aplk
+*.aplk-meta
+.aplk-meta
+*.locked
+vault.inex

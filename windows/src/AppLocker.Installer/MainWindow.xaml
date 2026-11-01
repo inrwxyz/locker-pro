@@ -1,0 +1,154 @@
+<Window x:Class="AppLocker.Installer.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Locker Setup" Height="360" Width="500"
+        WindowStartupLocation="CenterScreen"
+        AllowsTransparency="True" WindowStyle="None" Background="Transparent"
+        MouseLeftButtonDown="Window_MouseDown">
+
+    <Window.Resources>
+        <SolidColorBrush x:Key="BgDark" Color="#08080C"/>
+        <SolidColorBrush x:Key="CardBg" Color="#111118"/>
+        <SolidColorBrush x:Key="Line" Color="#1C1C28"/>
+        <SolidColorBrush x:Key="TextMain" Color="#F4F4F7"/>
+        <SolidColorBrush x:Key="TextDim" Color="#7E7E94"/>
+        <SolidColorBrush x:Key="TextMuted" Color="#505064"/>
+
+        <Style x:Key="TitleBtn" TargetType="Button">
+            <Setter Property="Width" Value="34"/>
+            <Setter Property="Height" Value="30"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="{StaticResource TextDim}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="6">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#1AFFFFFF"/>
+                                <Setter Property="Foreground" Value="{StaticResource TextMain}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Inex Island Clean White Button -->
+        <Style x:Key="AccentBtn" TargetType="Button">
+            <Setter Property="Background" Value="#FFFFFF"/>
+            <Setter Property="Foreground" Value="#09090E"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Height" Value="38"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="8">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#E5E5EB"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#CCCCCC"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Bd" Property="Opacity" Value="0.4"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="DarkCheck" TargetType="CheckBox">
+            <Setter Property="Foreground" Value="{StaticResource TextDim}"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Margin" Value="0,0,16,0"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid Margin="12">
+        <Border Background="{StaticResource BgDark}" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="14" ClipToBounds="True">
+            <Border.Effect>
+                <DropShadowEffect BlurRadius="16" ShadowDepth="4" Opacity="0.55" Color="#000000" Direction="270"/>
+            </Border.Effect>
+            <Grid Margin="20,16,20,18">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <!-- Top Header -->
+                <Grid Grid.Row="0">
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock Text="/" Foreground="#FFFFFF" FontWeight="Bold" FontSize="16" VerticalAlignment="Center"/>
+                        <TextBlock Text=" Locker" Foreground="{StaticResource TextMain}" FontWeight="SemiBold" FontSize="15" VerticalAlignment="Center"/>
+                        <Border Background="#1C1C28" CornerRadius="4" Padding="5,2" Margin="8,0,0,0" VerticalAlignment="Center">
+                            <TextBlock Text="INSTALLER" Foreground="#FFFFFF" FontSize="9.5" FontWeight="Bold"/>
+                        </Border>
+                    </StackPanel>
+                    <Button Content="&#xE8BB;" FontFamily="Segoe MDL2 Assets" FontSize="11" Style="{StaticResource TitleBtn}"
+                            HorizontalAlignment="Right" Click="Close_Click"/>
+                </Grid>
+
+                <!-- Middle Info / Options / Progress -->
+                <Grid Grid.Row="1" Margin="0,18,0,16">
+                    <!-- Step 1: Install Options -->
+                    <StackPanel x:Name="OptionsPanel">
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,14">
+                            <Border Width="46" Height="46" CornerRadius="12" Background="#161624" BorderBrush="#26263A" BorderThickness="1" Margin="0,0,14,0" VerticalAlignment="Center">
+                                <TextBlock Text="&#xE72E;" FontFamily="Segoe MDL2 Assets" FontSize="22" Foreground="#FFFFFF"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock Text="Install Locker PRO" Foreground="{StaticResource TextMain}" FontSize="16" FontWeight="SemiBold"/>
+                                <TextBlock Text="Fast, secure app and folder lock with Inex Island integration." Foreground="{StaticResource TextDim}" FontSize="11.5" Margin="0,2,0,0"/>
+                            </StackPanel>
+                        </StackPanel>
+
+                        <!-- Destination Path -->
+                        <Border Background="{StaticResource CardBg}" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="8" Padding="12,8" Margin="0,0,0,12">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="Install to:" Foreground="{StaticResource TextMuted}" FontSize="11.5" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                <TextBlock x:Name="InstallPathText" Grid.Column="1" Text="%LocalAppData%\Locker" Foreground="{StaticResource TextDim}" FontSize="11.5" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                            </Grid>
+                        </Border>
+
+                        <!-- Options -->
+                        <StackPanel Orientation="Horizontal" Margin="4,0,0,0">
+                            <CheckBox x:Name="ChkContextMenu" Style="{StaticResource DarkCheck}" Content="Context Menu" IsChecked="False" Visibility="Collapsed"/>
+                            <CheckBox x:Name="ChkAutoStart" Style="{StaticResource DarkCheck}" Content="Auto-start at Logon" IsChecked="True"/>
+                            <CheckBox x:Name="ChkDesktopShortcut" Style="{StaticResource DarkCheck}" Content="Desktop Icon" IsChecked="True"/>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <!-- Step 2: Installing Progress -->
+                    <StackPanel x:Name="ProgressPanel" Visibility="Collapsed" VerticalAlignment="Center">
+                        <TextBlock x:Name="ProgressStatusText" Text="Installing Locker PRO..." Foreground="{StaticResource TextMain}" FontSize="14" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                        <ProgressBar x:Name="InstallProgressBar" Height="5" Background="#1C1C28" Foreground="#FFFFFF" IsIndeterminate="True" Margin="0,0,0,10"/>
+                        <TextBlock x:Name="ProgressDetailText" Text="Extracting binaries..." Foreground="{StaticResource TextDim}" FontSize="11.5"/>
+                    </StackPanel>
+                </Grid>
+
+                <!-- Bottom Action Button -->
+                <Grid Grid.Row="2">
+                    <Button x:Name="InstallBtn" Content="Install Now" Style="{StaticResource AccentBtn}" Click="InstallBtn_Click"/>
+                    <Button x:Name="FinishBtn" Content="Launch Locker" Style="{StaticResource AccentBtn}" Visibility="Collapsed" Click="FinishBtn_Click"/>
+                </Grid>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

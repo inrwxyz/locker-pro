@@ -1,0 +1,22 @@
+<resources>
+    <style name="Theme.LockerCompanion" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="colorPrimary">#6366F1</item>
+        <item name="colorPrimaryVariant">#4338CA</item>
+        <item name="colorOnPrimary">#FFFFFF</item>
+        <item name="android:statusBarColor">#000000</item>
+        <item name="android:navigationBarColor">#000000</item>
+        <item name="android:windowBackground">#000000</item>
+    </style>
+
+    <!-- Invisible host for the passkey-style fingerprint prompt (AuthPromptActivity) -->
+    <style name="Theme.LockerCompanion.Transparent" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowContentOverlay">@null</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowIsFloating">false</item>
+        <item name="android:backgroundDimEnabled">false</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+    </style>
+</resources>

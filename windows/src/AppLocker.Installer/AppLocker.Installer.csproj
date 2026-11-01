@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <ApplicationIcon>..\lock.ico</ApplicationIcon>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <UseWPF>true</UseWPF>
+    <AssemblyName>Locker-Setup</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="payload.zip" />
+  </ItemGroup>
+
+</Project>

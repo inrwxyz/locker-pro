@@ -1,0 +1,46 @@
+# ---- Locker Companion (Android / Gradle) ----
+
+# Gradle
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+
+# Machine specific: contains your SDK path, Android Studio regenerates it
+local.properties
+
+# Build output
+*.apk
+*.aab
+*.ap_
+*.dex
+*.class
+bin/
+gen/
+out/
+captures/
+.externalNativeBuild/
+.cxx/
+
+# IDE
+.idea/
+.vs/
+.vscode/
+*.iml
+*.user
+
+# Signing keys and secrets (never commit)
+*.jks
+*.keystore
+*.pem
+*.p12
+keystore.properties
+google-services.json
+.env
+.env.*
+
+# Logs / OS junk
+*.log
+*.tmp
+*.bak
+.DS_Store
+Thumbs.db

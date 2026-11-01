@@ -1,0 +1,9 @@
+Windows Registry Editor Version 5.00
+
+[-HKEY_CURRENT_USER\Software\Classes\Directory\shell\LockerLock]
+[-HKEY_CURRENT_USER\Software\Classes\exefile\shell\LockerLockApp]
+[-HKEY_CURRENT_USER\Software\Classes\lnkfile\shell\LockerLockApp]
+
+[-HKEY_CURRENT_USER\Software\Classes\Directory\shell\AppLockerLock]
+[-HKEY_CURRENT_USER\Software\Classes\exefile\shell\AppLockerLockApp]
+[-HKEY_CURRENT_USER\Software\Classes\lnkfile\shell\AppLockerLockApp]

@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#000000">
+  <title>Locker Companion</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Top App Bar -->
+  <header class="app-header">
+    <div class="header-brand">
+      <img src="logo.png" class="brand-logo-img" alt="Locker">
+      <div>
+        <h1 class="brand-title">Locker Key</h1>
+        <span class="brand-subtitle">Biometric Companion</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content Container -->
+  <main class="content-container">
+
+    <!-- TAB 1: DASHBOARD -->
+    <section id="tab-dashboard" class="tab-pane active">
+      
+      <!-- Incoming Auth Alert Banner (auto-triggered by PC) -->
+      <div id="incoming-auth-card" class="auth-alert-card hidden">
+        <div class="auth-alert-glow"></div>
+        <div class="auth-alert-header">
+          <div class="pulse-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#EF4444" stroke-width="2">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            </svg>
+          </div>
+          <div>
+            <div class="auth-alert-badge">SECURITY PROMPT</div>
+            <h3 id="incoming-target-title" class="auth-target-name">Unlock Request</h3>
+          </div>
+        </div>
+        <p class="auth-alert-desc">PC is requesting biometric authorization to unlock.</p>
+        <button id="btn-approve-auth" class="btn btn-emerald btn-glow">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="btn-icon">
+            <path d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 004 11m0 0a8 8 0 001.328 4.417m11.235 5.568A21.96 21.96 0 0112 22c-1.396 0-2.748-.13-4.057-.378"/>
+          </svg>
+          Verify Biometrics (Finger / Face)
+        </button>
+      </div>
+
+      <!-- PAIRED HERO CARD (SHOWN WHEN PAIRED) -->
+      <div id="paired-hero-card" class="card hidden">
+        <div class="card-header-row">
+          <span class="section-tag" style="color:#10B981; font-weight:700;">CONNECTED COMPUTER</span>
+        </div>
+        <div class="device-row">
+          <div class="device-avatar" style="background:rgba(99,102,241,0.15); border:1px solid rgba(99,102,241,0.3);">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#818CF8" stroke-width="2">
+              <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
+              <line x1="8" y1="21" x2="16" y2="21"/>
+              <line x1="12" y1="17" x2="12" y2="21"/>
+            </svg>
+          </div>
+          <div class="device-info">
+            <div id="pc-name-display" class="device-name" style="font-size:16px; font-weight:700; color:#fff;">No PC Paired</div>
+            <div id="pc-ip-display" class="device-ip" style="color:#94A3B8;">Connected</div>
+          </div>
+        </div>
+        <div class="card-footer-actions">
+          <button id="btn-ping-pc" class="btn btn-outline btn-sm">Test Connection</button>
+          <button id="btn-unpair-dash" class="btn btn-danger-outline btn-sm">Disconnect</button>
+        </div>
+      </div>
+
+
+      <!-- Toggle Pair Section (Minimalist Accordion when Paired) -->
+      <div id="pair-accordion-container" style="margin-top:10px;">
+        <button id="btn-toggle-pair-box" class="btn btn-outline btn-block hidden" style="font-size:12px; padding:10px; border-style:dashed;">
+          + Connect Another PC / Change IP
+        </button>
+
+        <!-- PAIRING BOX (Hidden by default when paired) -->
+        <div id="pair-inputs-box" class="card pair-hero-card">
+          <div class="pair-hero-header">
+            <div class="card-icon-box bg-purple">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#818CF8" stroke-width="2">
+                <path d="M3 7V5a2 2 0 0 1 2-2h2"/>
+                <path d="M17 3h2a2 2 0 0 1 2 2v2"/>
+                <path d="M21 17v2a2 2 0 0 1-2 2h-2"/>
+                <path d="M7 21H5a2 2 0 0 1-2-2v-2"/>
+                <rect x="7" y="7" width="10" height="10" rx="1"/>
+              </svg>
+            </div>
+            <div>
+              <h2 class="card-title">Pair With Your PC</h2>
+              <p class="card-desc">Scan QR Code from Locker Pro</p>
+            </div>
+          </div>
+
+          <div class="pair-steps-box">
+            <div class="step-line"><span class="step-num">1</span> Open <strong>Locker Pro</strong> on PC &gt; click <strong>Phone Link</strong>.</div>
+            <div class="step-line"><span class="step-num">2</span> Click <strong>"Pair New Phone"</strong> to show the QR code.</div>
+            <div class="step-line"><span class="step-num">3</span> Tap the button below to scan and link instantly:</div>
+          </div>
+
+          <button id="btn-scan-qr" class="btn btn-emerald btn-block" style="padding:15px; font-size:15px; font-weight:700; margin-top:16px;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="btn-icon">
+              <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+              <circle cx="12" cy="13" r="4"/>
+            </svg>
+            Scan QR Code on PC
+          </button>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- TAB 4: SETTINGS -->
+    <section id="tab-settings" class="tab-pane">
+      <div class="card">
+        <span class="section-tag">DEVICE &amp; BIOMETRIC HARDWARE</span>
+        
+        <div class="setting-item">
+          <div>
+            <div class="setting-title">Device Name</div>
+            <div id="device-model-name" class="setting-subtitle">Android Device</div>
+          </div>
+        </div>
+
+        <div class="setting-item">
+          <div>
+            <div class="setting-title">Biometric Sensor Status</div>
+            <div id="biometric-status-text" class="setting-subtitle">Fingerprint &amp; Face Supported</div>
+          </div>
+          <span class="badge badge-emerald">Active</span>
+        </div>
+
+        <div class="setting-item">
+          <div>
+            <div class="setting-title">Vibrate on Verification</div>
+            <div class="setting-subtitle">Haptic feedback on biometric approval</div>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="toggle-vibrate" checked>
+            <span class="slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <div class="card">
+        <span class="section-tag">ABOUT</span>
+        <div class="setting-item">
+          <div>
+            <div class="setting-title">Locker Key Companion</div>
+            <div class="setting-subtitle">Version 2.0.0 Pro</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Bottom Navigation -->
+  <nav class="bottom-nav" style="grid-template-columns: 1fr 1fr;">
+    <button class="nav-btn active" data-tab="tab-dashboard">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+        <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+      </svg>
+      <span>Key</span>
+    </button>
+    <button class="nav-btn" data-tab="tab-settings">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="3"/>
+        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+      </svg>
+      <span>Settings</span>
+    </button>
+  </nav>
+
+  <!-- Toast Notification Container -->
+  <div id="toast" class="toast hidden"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>

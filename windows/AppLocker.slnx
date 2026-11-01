@@ -1,0 +1,13 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/AppLocker.Core/AppLocker.Core.csproj" />
+    <Project Path="src/AppLocker.Guard/AppLocker.Guard.csproj" />
+    <Project Path="src/AppLocker.Installer/AppLocker.Installer.csproj" />
+    <Project Path="src/AppLocker.Launch/AppLocker.Launch.csproj" />
+    <Project Path="src/AppLocker.Manager/AppLocker.Manager.csproj" />
+    <Project Path="src/AppLocker.Shell/AppLocker.Shell.csproj" />
+    <Project Path="src/AppLocker.Tests/AppLocker.Tests.csproj" />
+    <Project Path="src/AppLocker.UI/AppLocker.UI.csproj" />
+    <Project Path="src/AppLocker.Uninstaller/AppLocker.Uninstaller.csproj" />
+  </Folder>
+</Solution>

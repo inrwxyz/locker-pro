@@ -1,0 +1,36 @@
+<Window x:Class="AppLocker.Manager.Guard.ToastChip"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Locker" Width="260" SizeToContent="Height"
+        WindowStyle="None" AllowsTransparency="True" Background="Transparent"
+        ResizeMode="NoResize" Topmost="True" ShowInTaskbar="False"
+        UseLayoutRounding="True" SnapsToDevicePixels="True"
+        Opacity="0">
+
+    <Grid Margin="6,4">
+        <Border x:Name="Card" CornerRadius="10" Background="#F00A0A14"
+                BorderBrush="#2A2A3E" BorderThickness="1">
+            <Border.Effect>
+                <DropShadowEffect BlurRadius="10" ShadowDepth="3" Opacity="0.5"
+                                  Color="#000000" Direction="270"/>
+            </Border.Effect>
+
+            <StackPanel Orientation="Horizontal" Margin="12,10" VerticalAlignment="Center">
+                <!-- Glyph Icon -->
+                <TextBlock x:Name="GlyphIcon" Text="&#xE72E;" FontFamily="Segoe MDL2 Assets"
+                           FontSize="15" Foreground="#FFFFFF" VerticalAlignment="Center"
+                           Margin="0,0,10,0"/>
+
+                <!-- Text stack -->
+                <StackPanel VerticalAlignment="Center">
+                    <TextBlock x:Name="TitleText" Text="Paired!" Foreground="#F4F4F7"
+                               FontSize="12" FontWeight="SemiBold"
+                               TextTrimming="CharacterEllipsis" MaxWidth="180"/>
+                    <TextBlock x:Name="SubText" Text="" Foreground="#8E8EA8"
+                               FontSize="11" TextTrimming="CharacterEllipsis"
+                               MaxWidth="180" Margin="0,1,0,0"/>
+                </StackPanel>
+            </StackPanel>
+        </Border>
+    </Grid>
+</Window>

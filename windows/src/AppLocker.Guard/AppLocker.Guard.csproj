@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\AppLocker.Core\AppLocker.Core.csproj" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <AssemblyName>LockerGuard</AssemblyName>
+    <ApplicationIcon>..\lock.ico</ApplicationIcon>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>
