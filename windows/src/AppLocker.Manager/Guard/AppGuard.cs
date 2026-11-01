@@ -62,7 +62,6 @@ public class AppGuard : IDisposable
     private readonly Dictionary<string, HashSet<int>> _unlocked = new(StringComparer.OrdinalIgnoreCase);
     // Canonical locked path -> waiting processes
     private readonly Dictionary<string, List<Process>> _waiting = new(StringComparer.OrdinalIgnoreCase);
-    private readonly HashSet<string> _hadWindow = new(StringComparer.OrdinalIgnoreCase);
 
     public event Action<string>? Relocked;
 
@@ -93,7 +92,6 @@ public class AppGuard : IDisposable
         lock (_lock)
         {
             _unlocked.Remove(canon);
-            _hadWindow.Remove(canon);
             if (_waiting.Remove(canon, out var waiting))
             {
                 foreach (var p in waiting)
@@ -432,31 +430,14 @@ public class AppGuard : IDisposable
                 foreach (var kvp in _unlocked.ToList())
                 {
                     string path = kvp.Key;
-                    bool running = PathRunning(path);
-                    bool hasWindow = running && AppHasVisibleWindow(path);
-
-                    if (hasWindow)
+                    // Kono app er shob process jodi bondho hoye jay (tray theke Quit ba normal exit):
+                    // Tray-te joto kkhon process cholche toto kkhon session unlocked thakbe (kill ba lock hobe na)
+                    if (!PathRunning(path))
                     {
-                        _hadWindow.Add(path);
-                    }
-                    else if (!running)
-                    {
-                        // App-er shob process exit hoyeche
                         _unlocked.Remove(path);
-                        _hadWindow.Remove(path);
                         toRelock ??= new List<string>();
                         toRelock.Add(path);
                         Log($"SWEEP: All processes exited, relocked: {path}");
-                    }
-                    else if (_hadWindow.Contains(path))
-                    {
-                        // App-er visible window close hoyeche kintu background / system tray-te cholche (e.g. Discord, Spotify, Chrome)
-                        // Process kill korbona jate tray icon thake! Shudhu session relock korbo jate porer bar window open korle password chay.
-                        _unlocked.Remove(path);
-                        _hadWindow.Remove(path);
-                        toRelock ??= new List<string>();
-                        toRelock.Add(path);
-                        Log($"SWEEP: Window closed, relocked (preserved in tray/background): {path}");
                     }
                 }
             }
