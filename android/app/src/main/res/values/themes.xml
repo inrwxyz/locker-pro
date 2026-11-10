@@ -1,8 +1,8 @@
 <resources>
     <style name="Theme.LockerCompanion" parent="Theme.MaterialComponents.DayNight.NoActionBar">
-        <item name="colorPrimary">#6366F1</item>
-        <item name="colorPrimaryVariant">#4338CA</item>
-        <item name="colorOnPrimary">#FFFFFF</item>
+        <item name="colorPrimary">#FFFFFF</item>
+        <item name="colorPrimaryVariant">#E6E6E6</item>
+        <item name="colorOnPrimary">#000000</item>
         <item name="android:statusBarColor">#000000</item>
         <item name="android:navigationBarColor">#000000</item>
         <item name="android:windowBackground">#000000</item>

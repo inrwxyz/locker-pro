@@ -7,9 +7,9 @@
         ResizeMode="NoResize" Topmost="True" ShowInTaskbar="False"
         Opacity="0">
     <Window.Resources>
-        <SolidColorBrush x:Key="Glass" Color="#E608080C"/>
-        <SolidColorBrush x:Key="Line" Color="#252538"/>
-        <SolidColorBrush x:Key="Soft" Color="#A0A0B2"/>
+        <SolidColorBrush x:Key="Glass" Color="#E60B0A07"/>
+        <SolidColorBrush x:Key="Line" Color="#2D2C29"/>
+        <SolidColorBrush x:Key="Soft" Color="#A8A7A4"/>
         <DropShadowEffect x:Key="TS" Color="Black" BlurRadius="6" ShadowDepth="0" Opacity="0.85"/>
 
         <Style x:Key="PlainButton" TargetType="Button">
@@ -24,7 +24,7 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Bd" Property="Background" Value="#222232"/>
+                                <Setter TargetName="Bd" Property="Background" Value="#292825"/>
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter TargetName="Bd" Property="Opacity" Value="0.4"/>
@@ -71,21 +71,31 @@
                 <TextBlock x:Name="ItemName" Text="Locked item" Foreground="White" FontSize="14.5"
                            FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,8,0,2"
                            TextTrimming="CharacterEllipsis" MaxWidth="280"/>
-                <TextBlock x:Name="Status" Text="Password dao" Foreground="{StaticResource Soft}" FontSize="12"
-                           HorizontalAlignment="Center" Margin="0,0,0,2"/>
+                <TextBlock x:Name="Status" Text="Enter password" Foreground="{StaticResource Soft}" FontSize="12"
+                           HorizontalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap"
+                           MaxWidth="280" Margin="0,0,0,2"/>
+
+                <!-- Live encryption/decryption progress -->
+                <StackPanel x:Name="ProgressPanel" Margin="0,10,0,0" Visibility="Collapsed">
+                    <ProgressBar x:Name="OpProgressBar" Height="5" Minimum="0" Maximum="100" Value="0"
+                                 Background="#1E1D1A" Foreground="#FFFFFF" BorderThickness="0"/>
+                    <TextBlock x:Name="ProgressDetail" Text="" Foreground="{StaticResource Soft}" FontSize="11"
+                               HorizontalAlignment="Center" Margin="0,6,0,0"
+                               TextTrimming="CharacterEllipsis" MaxWidth="280"/>
+                </StackPanel>
 
                 <!-- Password form -->
                 <StackPanel x:Name="FormPanel" Margin="0,12,0,0">
                     <Grid>
                         <PasswordBox x:Name="PwBox" Height="36" FontSize="14" Padding="10,6,40,6"
-                                     Background="#12121A" Foreground="White" CaretBrush="White"
+                                     Background="#161512" Foreground="White" CaretBrush="White"
                                      BorderBrush="{StaticResource Line}" BorderThickness="1"/>
                         <TextBox x:Name="PwText" Height="36" FontSize="14" Padding="10,6,40,6"
-                                 Background="#12121A" Foreground="White" CaretBrush="White"
+                                 Background="#161512" Foreground="White" CaretBrush="White"
                                  BorderBrush="{StaticResource Line}" BorderThickness="1" Visibility="Collapsed"/>
                         <Button x:Name="EyeBtn" Content="&#xE7B3;" FontFamily="Segoe MDL2 Assets"
                                 HorizontalAlignment="Right" Width="36" Height="36"
-                                Background="Transparent" Foreground="#8E8E9E" BorderThickness="0"
+                                Background="Transparent" Foreground="#959491" BorderThickness="0"
                                 Cursor="Hand" Click="EyeBtn_Click"/>
                     </Grid>
 
@@ -94,10 +104,10 @@
                             <ColumnDefinition/><ColumnDefinition Width="10"/><ColumnDefinition/>
                         </Grid.ColumnDefinitions>
                         <Button x:Name="CancelBtn" Grid.Column="0" Content="Cancel" Height="34"
-                                Style="{StaticResource PlainButton}" Background="#161622" Foreground="#8E8E9E"
+                                Style="{StaticResource PlainButton}" Background="#1C1B18" Foreground="#959491"
                                 IsCancel="True" Click="CancelBtn_Click"/>
                         <Button x:Name="UnlockBtn" Grid.Column="2" Content="Unlock" Height="34"
-                                Style="{StaticResource PlainButton}" Background="White" Foreground="#09090E"
+                                Style="{StaticResource PlainButton}" Background="White" Foreground="#0C0B08"
                                 FontWeight="Bold" IsDefault="True" Click="UnlockBtn_Click"/>
                     </Grid>
                 </StackPanel>

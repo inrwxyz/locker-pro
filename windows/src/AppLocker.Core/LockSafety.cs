@@ -14,7 +14,7 @@ public static class LockSafety
     public static bool IsSafeFolder(string full, out string why)
     {
         why = "";
-        if (full.Length <= 2) { why = "Drive root lock kora jabe na"; return false; }
+        if (full.Length <= 2) { why = "Drive root cannot be locked."; return false; }
 
         string[] protectedDirs =
         {
@@ -30,7 +30,7 @@ public static class LockSafety
             if (string.IsNullOrEmpty(p)) continue;
             if (Inside(full, p) || Inside(p, full))
             {
-                why = "System ba AppLocker er folder lock kora jabe na";
+                why = "System or Locker folders cannot be locked.";
                 return false;
             }
         }
@@ -47,7 +47,7 @@ public static class LockSafety
 
         string? root = Path.GetPathRoot(full)?.TrimEnd('\\');
         if (full.Length <= 2 || (root != null && full.Equals(root, StringComparison.OrdinalIgnoreCase)))
-        { why = "Drive root lock kora jabe na. Ekta folder bachho."; return false; }
+        { why = "Drive root cannot be locked. Choose a folder."; return false; }
 
         string[] systemDirs =
         {
@@ -63,7 +63,7 @@ public static class LockSafety
             if (string.IsNullOrEmpty(p)) continue;
             if (Inside(full, p) || Inside(p, full))
             {
-                why = "System ba Locker er folder lock kora jabe na.";
+                why = "System or Locker folders cannot be locked.";
                 return false;
             }
         }
@@ -71,7 +71,7 @@ public static class LockSafety
         string profile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
         if (!string.IsNullOrEmpty(profile) && Inside(profile, full)) // profile itself or a parent of it
         {
-            why = "User profile folder (ba tar parent) lock kora jabe na. Tar bhitorer kono folder bachho.";
+            why = "User profile folder (or its parent) cannot be locked. Choose a folder inside it.";
             return false;
         }
         return true;

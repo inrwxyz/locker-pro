@@ -100,6 +100,7 @@ public static class LockerSettings
                 DirHarden.RestrictToAdminsAndSystem(SettingsDir); // settings.json holds the phone shared secret
                 string json = JsonSerializer.Serialize(data, new JsonSerializerOptions { WriteIndented = true });
                 File.WriteAllText(SettingsFile, json);
+                _lastLoadedUtc = File.GetLastWriteTimeUtc(SettingsFile);
             }
             catch { }
         }

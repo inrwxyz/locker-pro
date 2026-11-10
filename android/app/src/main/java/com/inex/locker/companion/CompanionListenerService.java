@@ -326,6 +326,46 @@ public class CompanionListenerService extends Service {
                         // app is NOT open: never open the dashboard, only the passkey-style prompt
                         showPasskeyPrompt(shown, actionType);
                     }
+                } else if ("unpair".equals(action)) {
+                    String ts = obj.optString("ts", "");
+                    String nonce = obj.optString("nonce", "");
+                    String mac = obj.optString("mac", "");
+                    String secret = PhoneAuth.loadSecret(this);
+                    long tsSec = 0;
+                    try { tsSec = Long.parseLong(ts); } catch (Exception ignored) {}
+                    long nowSec = System.currentTimeMillis() / 1000L;
+                    boolean fresh = Math.abs(nowSec - tsSec) <= 300;
+                    boolean valid = !secret.isEmpty()
+                            && PhoneAuth.isValidNonce(nonce)
+                            && fresh
+                            && PhoneAuth.verify(secret, mac, "unpair", ts, nonce);
+
+                    boolean notReplayed = false;
+                    if (valid) {
+                        synchronized (CompanionListenerService.class) {
+                            if (!sSeenNonces.contains(nonce)) {
+                                sSeenNonces.add(nonce);
+                                while (sSeenNonces.size() > 64) {
+                                    java.util.Iterator<String> it = sSeenNonces.iterator();
+                                    it.next();
+                                    it.remove();
+                                }
+                                notReplayed = true;
+                            }
+                        }
+                    }
+
+                    if (notReplayed) {
+                        android.content.SharedPreferences sp = getSharedPreferences("locker_companion", Context.MODE_PRIVATE);
+                        sp.edit().remove("pc_name").remove("pc_ip").remove("pc_secret").remove("paired_at").apply();
+                        android.content.SharedPreferences sp2 = getSharedPreferences("locker_native_prefs", Context.MODE_PRIVATE);
+                        sp2.edit().clear().apply();
+                        BiometricKeys.deleteKey();
+                        if (MainActivity.sInstance != null) {
+                            MainActivity.sInstance.notifyUnpairedFromPc();
+                        }
+                    }
+                    client.close();
                 } else {
                     client.close();
                 }

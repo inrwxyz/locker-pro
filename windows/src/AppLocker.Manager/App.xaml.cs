@@ -70,29 +70,34 @@ public partial class App : Application
         }
 
         // Mode 5: Main UI Manager
-        // Check if an existing UI instance is already running with an open window
-        int curPid = Environment.ProcessId;
-        var existingUi = Process.GetProcessesByName("Locker")
-            .FirstOrDefault(p => p.Id != curPid && p.MainWindowHandle != IntPtr.Zero);
-
-        if (existingUi != null)
-        {
-            try
-            {
-                ShowWindow(existingUi.MainWindowHandle, SW_RESTORE);
-                SetForegroundWindow(existingUi.MainWindowHandle);
-            }
-            catch { }
-            Shutdown();
-            return;
-        }
-
+        // Enforce single UI instance so rapid double-clicks / installer finish never spawn two password gates
+        bool createdNewUi = true;
         try
         {
-            bool createdNewUi;
             _uiMutex = new Mutex(true, @"Local\LockerUI_SingleInstance", out createdNewUi);
         }
         catch { }
+
+        int curPid = Environment.ProcessId;
+        var allLockerProcs = Process.GetProcessesByName("Locker");
+        var existingUi = allLockerProcs.FirstOrDefault(p => p.Id != curPid && p.MainWindowHandle != IntPtr.Zero);
+
+        if (!createdNewUi || existingUi != null)
+        {
+            if (existingUi != null)
+            {
+                try
+                {
+                    ShowWindow(existingUi.MainWindowHandle, SW_RESTORE);
+                    SetForegroundWindow(existingUi.MainWindowHandle);
+                }
+                catch { }
+            }
+            foreach (var p in allLockerProcs) p.Dispose();
+            Shutdown();
+            return;
+        }
+        foreach (var p in allLockerProcs) p.Dispose();
 
         // Protect process from Task Manager termination and launch mutual watchdog
         ProcessProtector.Protect();
@@ -110,7 +115,7 @@ public partial class App : Application
         if (MasterConfig.IsSetup())
         {
             ShutdownMode = ShutdownMode.OnExplicitShutdown;
-            var gate = new PasswordPromptDialog("Locker kholar jonno Master Password dao:", isLock: false, target: "Locker");
+            var gate = new PasswordPromptDialog("Enter Master Password to open Locker:", isLock: false, target: "Locker");
             gate.WindowStartupLocation = WindowStartupLocation.CenterScreen;
             gate.Topmost = true;
             bool? passed = gate.ShowDialog();
@@ -166,7 +171,9 @@ public partial class App : Application
                 try
                 {
                     var explorers = Process.GetProcessesByName("explorer");
-                    if (explorers.Length > 0)
+                    bool anyExplorer = explorers.Length > 0;
+                    foreach (var exp in explorers) exp.Dispose();
+                    if (anyExplorer)
                     {
                         await Task.Delay(5000);
                         PhoneCompanionService.StopListener();

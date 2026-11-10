@@ -1,16 +1,23 @@
-﻿using System.Collections.Concurrent;
+using System.Collections.Concurrent;
 using System.IO;
 using System.Runtime.InteropServices;
+using System.Windows.Automation;
 
 namespace AppLocker.Manager.Guard;
 
-public record TabRecord(long Hwnd, string TargetFolder, string NavigatedAwayTo);
+public record TabRecord(long Hwnd, string TargetFolder, string NavigatedAwayTo, object? ComWindow);
 
 // Explorer e kono window/tab locked folder e dhukle dhore.
 // Dhukle oi window ke parent e pathay ar onOpened(lockedFolder) call kore.
 // Password thik hole Restore() diye oi-i tab ke abar folder e ferot pathay (notun tab khule na).
 public class ExplorerWatcher
 {
+    [DllImport("user32.dll")]
+    private static extern bool SetForegroundWindow(IntPtr hWnd);
+
+    [DllImport("user32.dll")]
+    private static extern bool IsWindow(IntPtr hWnd);
+
     private readonly Func<string, string?> _lockedFolderFor;
     private readonly Action<string> _onOpened;
     private readonly Thread _thread;
@@ -19,6 +26,10 @@ public class ExplorerWatcher
     private readonly Dictionary<string, List<TabRecord>> _pendingTabs =
         new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, DateTime> _canceledFolders =
+        new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, string> _lastActiveSubpathByFolder =
+        new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, long> _explorerHwndByFolder =
         new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentQueue<Action> _work = new();
     private readonly AutoResetEvent _wake = new(false);
@@ -54,78 +65,191 @@ public class ExplorerWatcher
         {
             _canceledFolders.TryRemove(folder, out _);
             bool ok = false;
-            dynamic? shell = null;
-            try
-            {
-                var t = Type.GetTypeFromProgID("Shell.Application")!;
-                shell = Activator.CreateInstance(t);
-            }
-            catch { }
+            dynamic? shell = GetShell();
 
             if (_pendingTabs.Remove(folder, out var list) && list != null && (object?)shell != null)
             {
                 foreach (var tab in list)
                 {
-                    if (shell == null) break;
-                    foreach (dynamic w in shell.Windows())
-                    {
-                        try
-                        {
-                            string exe = w.FullName;
-                            if (!exe.EndsWith("explorer.exe", StringComparison.OrdinalIgnoreCase)) continue;
-                            long curHwnd = w.HWND;
-                            if (curHwnd == tab.Hwnd)
-                            {
-                                bool forwarded = false;
-                                try
-                                {
-                                    w.GoForward();
-                                    string nu = w.LocationURL;
-                                    if (!string.IsNullOrEmpty(nu))
-                                    {
-                                        string np = new Uri(nu).LocalPath.TrimEnd('\\');
-                                        if (np.Equals(tab.TargetFolder, StringComparison.OrdinalIgnoreCase))
-                                        {
-                                            forwarded = true;
-                                        }
-                                    }
-                                }
-                                catch { }
-
-                                if (!forwarded)
-                                {
-                                    w.Navigate2(tab.TargetFolder);
-                                }
-                                ok = true;
-                                break;
-                            }
-                        }
-                        catch { }
-                    }
-                }
-            }
-
-            if (!ok && shell != null)
-            {
-#pragma warning disable CS8602 // shell is a COM object used through dynamic; null was checked above
-                foreach (dynamic w in shell.Windows())
-#pragma warning restore CS8602
-                {
                     try
                     {
-                        string exe = w.FullName;
-                        if (!exe.EndsWith("explorer.exe", StringComparison.OrdinalIgnoreCase)) continue;
-                        w.Navigate2(folder);
-                        ok = true;
-                        break;
+                        string dest = Directory.Exists(tab.TargetFolder) ? tab.TargetFolder : folder;
+
+                        // 1. Prefer the exact COM WebBrowser tab reference we intercepted so Win 11 multi-tab
+                        //    windows don't navigate a wrong/background tab sharing the same outer HWND.
+                        if (tab.ComWindow != null && TryNavigateTabAndVerify((dynamic)tab.ComWindow, dest, tab.Hwnd))
+                        {
+                            _lastActiveSubpathByFolder[folder.TrimEnd('\\')] = dest;
+                            _explorerHwndByFolder[folder.TrimEnd('\\')] = tab.Hwnd;
+                            ok = true;
+                            break;
+                        }
+
+                        // 2. Fallback to matching HWND inside ShellWindows
+                        foreach (dynamic w in shell.Windows())
+                        {
+                            try
+                            {
+                                string exe = w.FullName;
+                                if (!exe.EndsWith("explorer.exe", StringComparison.OrdinalIgnoreCase)) continue;
+                                long curHwnd = w.HWND;
+                                if (curHwnd == tab.Hwnd && TryNavigateTabAndVerify(w, dest, curHwnd))
+                                {
+                                    _lastActiveSubpathByFolder[folder.TrimEnd('\\')] = dest;
+                                    _explorerHwndByFolder[folder.TrimEnd('\\')] = curHwnd;
+                                    ok = true;
+                                    break;
+                                }
+                            }
+                            catch { }
+                        }
+                        if (ok) break;
                     }
                     catch { }
                 }
             }
 
+            if (!ok && shell != null)
+            {
+                try
+                {
+                    string parent = SafeParent(folder);
+#pragma warning disable CS8602 // shell is a COM object used through dynamic; null was checked above
+                    foreach (dynamic w in shell.Windows())
+#pragma warning restore CS8602
+                    {
+                        try
+                        {
+                            string exe = w.FullName;
+                            if (!exe.EndsWith("explorer.exe", StringComparison.OrdinalIgnoreCase)) continue;
+                            if (TryGetLocalPath(w.LocationURL as string, out string curPath) &&
+                                (curPath.Equals(parent, StringComparison.OrdinalIgnoreCase) ||
+                                 curPath.Equals(folder, StringComparison.OrdinalIgnoreCase)))
+                            {
+                                long curHwnd = w.HWND;
+                                if (TryNavigateTabAndVerify(w, folder, curHwnd))
+                                {
+                                    _lastActiveSubpathByFolder[folder.TrimEnd('\\')] = folder;
+                                    _explorerHwndByFolder[folder.TrimEnd('\\')] = curHwnd;
+                                    ok = true;
+                                    break;
+                                }
+                            }
+                        }
+                        catch { }
+                    }
+                }
+                catch { }
+            }
+
             if (!ok) fallback();
         });
         _wake.Set();
+    }
+
+    private static bool TryNavigateTabAndVerify(dynamic win, string dest, long hwnd)
+    {
+        try
+        {
+            string normDest = dest.TrimEnd('\\');
+            if (TryGetLocalPath(win.LocationURL as string, out string already) &&
+                already.Equals(normDest, StringComparison.OrdinalIgnoreCase))
+            {
+                if (hwnd != 0) SetForegroundWindow(new IntPtr(hwnd));
+                return true;
+            }
+
+            win.Navigate2(dest);
+            for (int i = 0; i < 6; i++)
+            {
+                Thread.Sleep(35);
+                if (TryGetLocalPath(win.LocationURL as string, out string nowPath) &&
+                    (nowPath.Equals(normDest, StringComparison.OrdinalIgnoreCase) ||
+                     nowPath.StartsWith(normDest + "\\", StringComparison.OrdinalIgnoreCase)))
+                {
+                    if (hwnd != 0) SetForegroundWindow(new IntPtr(hwnd));
+                    return true;
+                }
+            }
+        }
+        catch { }
+        return false;
+    }
+
+    /// <summary>
+    /// Tracks active subfolder paths and Explorer HWNDs so Win 11 background tabs can be detected
+    /// via UI Automation even when ShellWindows only reports the foreground tab's LocationURL.
+    /// </summary>
+    public void NoteOpenFolderPath(string rootFolder, string activePath)
+    {
+        string key = rootFolder.TrimEnd('\\');
+        _lastActiveSubpathByFolder[key] = activePath.TrimEnd('\\');
+    }
+
+    public bool IsFolderTabOpen(string folder)
+    {
+        string norm = folder.TrimEnd('\\');
+        string rootName = Path.GetFileName(norm);
+        string? subName = null;
+        if (_lastActiveSubpathByFolder.TryGetValue(norm, out string? lastSub))
+        {
+            string fn = Path.GetFileName(lastSub.TrimEnd('\\'));
+            if (!string.IsNullOrEmpty(fn)) subName = fn;
+        }
+
+        try
+        {
+            var tabCond = new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.TabItem);
+
+            // Fast check on the Explorer window where this folder was opened
+            if (_explorerHwndByFolder.TryGetValue(norm, out long knownHwnd) &&
+                knownHwnd != 0 && IsWindow(new IntPtr(knownHwnd)))
+            {
+                try
+                {
+                    var el = AutomationElement.FromHandle(new IntPtr(knownHwnd));
+                    if (el != null && WindowHasMatchingTab(el, tabCond, rootName, subName))
+                        return true;
+                }
+                catch { }
+            }
+
+            // Fallback: inspect any top-level Explorer CabinetWClass window
+            var winCond = new PropertyCondition(AutomationElement.ClassNameProperty, "CabinetWClass");
+            var wins = AutomationElement.RootElement.FindAll(TreeScope.Children, winCond);
+            foreach (AutomationElement w in wins)
+            {
+                try
+                {
+                    if (WindowHasMatchingTab(w, tabCond, rootName, subName))
+                        return true;
+                }
+                catch { }
+            }
+        }
+        catch { }
+        return false;
+    }
+
+    private static bool WindowHasMatchingTab(AutomationElement winEl, Condition tabCond, string rootName, string? subName)
+    {
+        var tabs = winEl.FindAll(TreeScope.Descendants, tabCond);
+        foreach (AutomationElement t in tabs)
+        {
+            string? title = t.Current.Name;
+            if (string.IsNullOrWhiteSpace(title)) continue;
+            string clean = title.Trim();
+            if (clean.Equals(rootName, StringComparison.OrdinalIgnoreCase)) return true;
+            if (subName != null && clean.Equals(subName, StringComparison.OrdinalIgnoreCase)) return true;
+        }
+        return false;
+    }
+
+    public void ForgetFolderTracking(string folder)
+    {
+        string norm = folder.TrimEnd('\\');
+        _lastActiveSubpathByFolder.TryRemove(norm, out _);
+        _explorerHwndByFolder.TryRemove(norm, out _);
     }
 
     public void NavigateAway(string folder)
@@ -134,42 +258,21 @@ public class ExplorerWatcher
         {
             try
             {
-                string? parent = Directory.GetParent(folder)?.FullName;
-                if (string.IsNullOrEmpty(parent) || !Directory.Exists(parent))
-                    parent = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
+                string parent = SafeParent(folder);
+                dynamic? shell = GetShell();
+                if (shell == null) return;
 
-                dynamic shell;
-                var t = Type.GetTypeFromProgID("Shell.Application")!;
-                shell = Activator.CreateInstance(t)!;
                 foreach (dynamic w in shell.Windows())
                 {
                     try
                     {
                         string exe = w.FullName;
                         if (!exe.EndsWith("explorer.exe", StringComparison.OrdinalIgnoreCase)) continue;
-                        string url = w.LocationURL;
-                        if (string.IsNullOrEmpty(url)) continue;
-                        string path = new Uri(url).LocalPath.TrimEnd('\\');
+                        if (!TryGetLocalPath(w.LocationURL as string, out string path)) continue;
                         if (path.Equals(folder, StringComparison.OrdinalIgnoreCase) ||
                             path.StartsWith(folder + "\\", StringComparison.OrdinalIgnoreCase))
                         {
-                            bool rolledBack = false;
-                            try
-                            {
-                                w.GoBack();
-                                rolledBack = true;
-                            }
-                            catch { }
-
-                            if (!rolledBack)
-                            {
-                                try { w.Navigate2(parent); }
-                                catch
-                                {
-                                    try { w.Navigate2(Environment.GetFolderPath(Environment.SpecialFolder.Desktop)); }
-                                    catch { }
-                                }
-                            }
+                            NavigateWindowAway(w, parent);
                         }
                     }
                     catch { }
@@ -186,30 +289,70 @@ public class ExplorerWatcher
         _wake.Set();
     }
 
-    private void Loop()
+    private dynamic? _shell;
+
+    private dynamic? GetShell()
     {
-        dynamic shell;
+        if (_shell != null) return _shell;
         try
         {
             var t = Type.GetTypeFromProgID("Shell.Application")!;
-            shell = Activator.CreateInstance(t)!;
+            _shell = Activator.CreateInstance(t);
         }
-        catch { return; }
+        catch { }
+        return _shell;
+    }
+
+    private static string SafeParent(string folder)
+    {
+        string? parent = Directory.GetParent(folder)?.FullName;
+        if (string.IsNullOrEmpty(parent) || !Directory.Exists(parent))
+            return Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
+        return parent;
+    }
+
+    private static bool TryGetLocalPath(string? url, out string path)
+    {
+        path = "";
+        if (string.IsNullOrEmpty(url)) return false;
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri) || !uri.IsFile) return false;
+        path = uri.LocalPath.TrimEnd('\\');
+        return !string.IsNullOrEmpty(path);
+    }
+
+    private static void NavigateWindowAway(dynamic win, string parent)
+    {
+        try
+        {
+            win.GoBack();
+            return;
+        }
+        catch { }
+
+        try
+        {
+            win.Navigate2(parent);
+            return;
+        }
+        catch { }
+
+        try { win.Navigate2(Environment.GetFolderPath(Environment.SpecialFolder.Desktop)); }
+        catch { }
+    }
+
+    private void Loop()
+    {
+        dynamic? shell = GetShell();
+        if (shell == null) return;
 
         while (!_stop)
         {
             try
             {
                 while (_work.TryDequeue(out var job)) job();
-                // Idle skip: if no locked folders tracked and no pending tabs, poll less often
-                bool hasWork = _pendingTabs.Count > 0 || _canceledFolders.Count > 0;
-                if (hasWork)
-                    Poll(shell);
-                else
-                    Poll(shell); // Always poll for ActiveFoldersChanged; just sleep longer when idle
+                Poll(shell);
             }
             catch { }
-            // Sleep: shorter when active tabs/cancel pending, slightly longer when idle
             bool idle = _pendingTabs.Count == 0 && _canceledFolders.Count == 0;
             _wake.WaitOne(idle ? 600 : 220);
         }
@@ -219,23 +362,30 @@ public class ExplorerWatcher
     {
         var wins = new List<(object win, string path)>();
         var activePaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        bool enumerated = false;
 
-        foreach (dynamic w in shell.Windows())
+        try
         {
-            try
+            foreach (dynamic w in shell.Windows())
             {
-                string exe = w.FullName;
-                if (!exe.EndsWith("explorer.exe", StringComparison.OrdinalIgnoreCase)) continue;
-                string url = w.LocationURL;
-                if (string.IsNullOrEmpty(url)) continue;
-                string path = new Uri(url).LocalPath.TrimEnd('\\');
-                wins.Add((w, path));
-                activePaths.Add(path);
+                try
+                {
+                    string exe = w.FullName;
+                    if (!exe.EndsWith("explorer.exe", StringComparison.OrdinalIgnoreCase)) continue;
+                    if (!TryGetLocalPath(w.LocationURL as string, out string path)) continue;
+                    wins.Add((w, path));
+                    activePaths.Add(path);
+                }
+                catch { }
             }
-            catch { }
+            enumerated = true;
         }
+        catch { }
 
-        ActiveFoldersChanged?.Invoke(activePaths);
+        if (enumerated)
+        {
+            ActiveFoldersChanged?.Invoke(activePaths);
+        }
 
         var interceptedFolders = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
@@ -246,63 +396,38 @@ public class ExplorerWatcher
                 string? locked = _lockedFolderFor(path);
                 if (locked == null) continue;
 
-                string? parent = Directory.GetParent(locked)?.FullName;
-                if (string.IsNullOrEmpty(parent) || !Directory.Exists(parent))
-                    parent = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
+                string parent = SafeParent(locked);
 
                 // If user canceled prompt for this folder, ensure window navigates away but DO NOT re-prompt
-                if (_canceledFolders.ContainsKey(locked))
+                if (_canceledFolders.TryGetValue(locked, out var canceledAt))
                 {
-                    bool rolledBack = false;
-                    try
+                    if ((DateTime.UtcNow - canceledAt).TotalSeconds < 30)
                     {
-                        ((dynamic)win).GoBack();
-                        rolledBack = true;
+                        NavigateWindowAway((dynamic)win, parent);
+                        continue;
                     }
-                    catch { }
-
-                    if (!rolledBack)
+                    else
                     {
-                        try { ((dynamic)win).Navigate2(parent); }
-                        catch
-                        {
-                            try { ((dynamic)win).Navigate2(Environment.GetFolderPath(Environment.SpecialFolder.Desktop)); }
-                            catch { }
-                        }
+                        _canceledFolders.TryRemove(locked, out _);
                     }
-                    continue;
                 }
 
                 // This window is inside a locked folder!
                 long hwnd = ((dynamic)win).HWND;
 
                 // 1. Immediately navigate away so files cannot be seen or clicked
-                bool navigatedAway = false;
-                try
-                {
-                    ((dynamic)win).GoBack();
-                    navigatedAway = true;
-                }
-                catch { }
-
-                if (!navigatedAway)
-                {
-                    try { ((dynamic)win).Navigate2(parent); }
-                    catch
-                    {
-                        try { ((dynamic)win).Navigate2(Environment.GetFolderPath(Environment.SpecialFolder.Desktop)); }
-                        catch { }
-                    }
-                }
+                NavigateWindowAway((dynamic)win, parent);
 
                 if (!_pendingTabs.TryGetValue(locked, out var list))
                     _pendingTabs[locked] = list = new();
 
-                if (!list.Any(t => t.Hwnd == hwnd))
+                if (!list.Any(t => t.Hwnd == hwnd && t.TargetFolder.Equals(path, StringComparison.OrdinalIgnoreCase)))
                 {
-                    list.Add(new TabRecord(hwnd, path, parent));
+                    list.Add(new TabRecord(hwnd, path, parent, win));
                 }
 
+                _explorerHwndByFolder[locked.TrimEnd('\\')] = hwnd;
+                _lastActiveSubpathByFolder[locked.TrimEnd('\\')] = path;
                 interceptedFolders.Add(locked);
             }
             catch { }
@@ -314,13 +439,13 @@ public class ExplorerWatcher
         }
 
         // Clean up canceled folders only after the user has completely navigated away from them
-        // and at least 1.5 seconds have passed since cancel
+        // and at least 30 seconds have passed since cancel
         var now = DateTime.UtcNow;
         foreach (var kvp in _canceledFolders.ToArray())
         {
             string f = kvp.Key;
             DateTime canceledAt = kvp.Value;
-            if ((now - canceledAt).TotalMilliseconds < 1500) continue;
+            if ((now - canceledAt).TotalSeconds < 30) continue;
 
             bool stillInside = activePaths.Any(p =>
                 p.Equals(f, StringComparison.OrdinalIgnoreCase) ||

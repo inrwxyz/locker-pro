@@ -53,4 +53,37 @@ public static class DirHarden
             // Never block the locker because ACL hardening failed (e.g. test config dir).
         }
     }
+
+    public const string WatchdogStopEventName = "AppLockerWatchdogStop";
+
+    /// <summary>
+    /// Creates or opens the watchdog stop event restricted to SYSTEM and Administrators so
+    /// unprivileged processes cannot silence LockerGuard.exe.
+    /// </summary>
+    public static EventWaitHandle OpenOrCreateWatchdogStopEvent()
+    {
+        try
+        {
+            var sec = new EventWaitHandleSecurity();
+            var system = new SecurityIdentifier(WellKnownSidType.LocalSystemSid, null);
+            var admins = new SecurityIdentifier(WellKnownSidType.BuiltinAdministratorsSid, null);
+            sec.AddAccessRule(new EventWaitHandleAccessRule(system, EventWaitHandleRights.FullControl, AccessControlType.Allow));
+            sec.AddAccessRule(new EventWaitHandleAccessRule(admins, EventWaitHandleRights.FullControl, AccessControlType.Allow));
+            return EventWaitHandleAcl.Create(false, EventResetMode.ManualReset, WatchdogStopEventName, out _, sec);
+        }
+        catch
+        {
+            return new EventWaitHandle(false, EventResetMode.ManualReset, WatchdogStopEventName);
+        }
+    }
+
+    public static void SignalWatchdogStop()
+    {
+        try
+        {
+            using var evt = OpenOrCreateWatchdogStopEvent();
+            evt.Set();
+        }
+        catch { }
+    }
 }

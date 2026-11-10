@@ -38,7 +38,7 @@ public static class AclGuard
     {
         var di = new DirectoryInfo(folder);
         var sec = di.GetAccessControl();
-        sec.RemoveAccessRule(Rule());
+        sec.RemoveAccessRuleAll(Rule());
         di.SetAccessControl(sec);
     }
 }

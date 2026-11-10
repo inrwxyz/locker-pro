@@ -29,7 +29,7 @@ public class DisplayItem
 		{
 			if (!IsFolder)
 			{
-				return new SolidColorBrush(Color.FromArgb(40, 56, 189, 248));
+				return new SolidColorBrush(Color.FromArgb(40, 230, 199, 122));
 			}
 			return new SolidColorBrush(Color.FromArgb(40, byte.MaxValue, byte.MaxValue, byte.MaxValue));
 		}
@@ -41,9 +41,9 @@ public class DisplayItem
 		{
 			if (!IsFolder)
 			{
-				return new SolidColorBrush(Color.FromRgb(56, 189, 248));
+				return new SolidColorBrush(Color.FromRgb(230, 199, 122));
 			}
-			return new SolidColorBrush(Color.FromRgb(226, 226, 234));
+			return new SolidColorBrush(Color.FromRgb(230, 229, 226));
 		}
 	}
 

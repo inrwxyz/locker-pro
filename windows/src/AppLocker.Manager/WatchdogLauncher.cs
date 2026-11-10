@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.IO;
 using System.Threading;
+using AppLocker.Core;
 
 namespace AppLocker.Manager;
 
@@ -11,14 +12,14 @@ namespace AppLocker.Manager;
 /// </summary>
 public static class WatchdogLauncher
 {
-    public const string StopEventName = "AppLockerWatchdogStop";
+    public const string StopEventName = DirHarden.WatchdogStopEventName;
     private static System.Threading.Timer? _timer;
 
     public static void Start()
     {
         try
         {
-            using var stop = new EventWaitHandle(false, EventResetMode.ManualReset, StopEventName);
+            using var stop = DirHarden.OpenOrCreateWatchdogStopEvent();
             stop.Reset();
         }
         catch { }
@@ -43,7 +44,10 @@ public static class WatchdogLauncher
     {
         try
         {
-            if (Process.GetProcessesByName("LockerGuard").Length > 0) return;
+            var guards = Process.GetProcessesByName("LockerGuard");
+            bool running = guards.Length > 0;
+            foreach (var g in guards) g.Dispose();
+            if (running) return;
 
             string? exe = FindGuard();
             if (exe == null || !File.Exists(exe)) return;
@@ -78,11 +82,6 @@ public static class WatchdogLauncher
 
     public static void SignalStop()
     {
-        try
-        {
-            using var e = new EventWaitHandle(false, EventResetMode.ManualReset, StopEventName);
-            e.Set();
-        }
-        catch { }
+        DirHarden.SignalWatchdogStop();
     }
 }

@@ -235,9 +235,33 @@ public static class MasterConfig
         return true;
     }
 
+    // Generates a new one-time recovery key (invalidating the previous one) after verifying current password.
+    public static string? RotateRecoveryKey(string currentPassword)
+    {
+        byte[]? master = GetKeyWithPassword(currentPassword);
+        if (master == null) return null;
+
+        try
+        {
+            string recoveryText = FormatRecovery(RandomNumberGenerator.GetBytes(20));
+            byte[] recSalt = Crypto.NewSalt();
+            byte[] recKey = Crypto.DeriveKey(Normalize(recoveryText), recSalt);
+
+            var d = Load();
+            d.RecoverySalt = Convert.ToBase64String(recSalt);
+            d.WrappedByRecovery = Convert.ToBase64String(KeyWrap.Wrap(master, recKey));
+            Save(d);
+            return recoveryText;
+        }
+        finally
+        {
+            CryptographicOperations.ZeroMemory(master);
+        }
+    }
+
     public static MasterData Load()
     {
-        if (!File.Exists(ConfigPath)) throw new FileNotFoundException("AppLocker setup hoyni.");
+        if (!File.Exists(ConfigPath)) throw new FileNotFoundException("Locker is not set up yet.");
         return JsonSerializer.Deserialize<MasterData>(File.ReadAllText(ConfigPath))!;
     }
 

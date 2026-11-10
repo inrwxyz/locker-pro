@@ -215,10 +215,20 @@ public class WebAppInterface {
                 if (resp != null) {
                     try {
                         JSONObject json = new JSONObject(resp);
-                        if ("pong".equals(json.optString("status")) && json.optBoolean("authenticated", false)) {
-                            String pcName = json.optString("pcName", "Locker PC");
-                            if (!mySecret.isEmpty()) {
-                                savePairedPCToNative(pcName, pcIp, mySecret);
+                        if ("pong".equals(json.optString("status"))) {
+                            if (json.optBoolean("authenticated", false)) {
+                                String pcName = json.optString("pcName", "Locker PC");
+                                if (!mySecret.isEmpty()) {
+                                    savePairedPCToNative(pcName, pcIp, mySecret);
+                                }
+                            } else if (!json.optBoolean("paired", true) && !mySecret.isEmpty()) {
+                                // PC was unpaired while phone was offline: sync local state cleanly
+                                clearPairedPCFromNative();
+                                mActivity.runOnUiThread(() -> {
+                                    if (mWebView != null) {
+                                        mWebView.evaluateJavascript("if (window.onPcUnpaired) window.onPcUnpaired();", null);
+                                    }
+                                });
                             }
                         }
                     } catch (Exception ignored) {}
@@ -280,10 +290,11 @@ public class WebAppInterface {
     public void savePairedPCToNative(String name, String ip, String secret) {
         try {
             android.content.SharedPreferences sp = mActivity.getSharedPreferences("locker_companion", Context.MODE_PRIVATE);
+            String sealed = PhoneAuth.sealLocalSecret(secret);
             sp.edit()
                     .putString("pc_name", name)
                     .putString("pc_ip", ip)
-                    .putString("pc_secret", secret)
+                    .putString("pc_secret", sealed)
                     .putLong("paired_at", System.currentTimeMillis())
                     .apply();
         } catch (Exception ignored) {}
@@ -293,13 +304,12 @@ public class WebAppInterface {
     public String getPairedPCFromNative() {
         try {
             android.content.SharedPreferences sp = mActivity.getSharedPreferences("locker_companion", Context.MODE_PRIVATE);
-            String secret = sp.getString("pc_secret", null);
-            if (secret == null) return "null";
+            String secret = PhoneAuth.loadSecret(mActivity);
+            if (secret.isEmpty()) return "null";
 
             JSONObject obj = new JSONObject();
             obj.put("name", sp.getString("pc_name", "Locker PC"));
             obj.put("ip", sp.getString("pc_ip", ""));
-            obj.put("secret", secret);
             obj.put("pairedAt", sp.getLong("paired_at", 0));
             return obj.toString();
         } catch (Exception e) {
@@ -308,10 +318,46 @@ public class WebAppInterface {
     }
 
     @JavascriptInterface
+    public void unpairFromPC(String pcIp, int port) {
+        final String secret = PhoneAuth.loadSecret(mActivity);
+        final String targetIp = (pcIp != null && !pcIp.isEmpty())
+                ? pcIp
+                : mActivity.getSharedPreferences("locker_companion", Context.MODE_PRIVATE).getString("pc_ip", "");
+        clearPairedPCFromNative();
+        if (targetIp == null || targetIp.isEmpty() || secret.isEmpty()) return;
+
+        new Thread(() -> {
+            Socket socket = null;
+            try {
+                socket = new Socket();
+                socket.connect(new InetSocketAddress(targetIp, port > 0 ? port : 58820), 2500);
+                socket.setSoTimeout(2500);
+                PrintWriter writer = new PrintWriter(new OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8), true);
+                String ts = String.valueOf(System.currentTimeMillis() / 1000L);
+                String nonce = PhoneAuth.newNonce();
+                JSONObject req = new JSONObject();
+                req.put("action", "unpair");
+                req.put("ts", ts);
+                req.put("nonce", nonce);
+                req.put("mac", PhoneAuth.sign(secret, "unpair", ts, nonce));
+                writer.println(req.toString());
+                writer.flush();
+            } catch (Exception ignored) {
+            } finally {
+                if (socket != null) {
+                    try { socket.close(); } catch (Exception ignored) {}
+                }
+            }
+        }).start();
+    }
+
+    @JavascriptInterface
     public void clearPairedPCFromNative() {
         try {
             android.content.SharedPreferences sp = mActivity.getSharedPreferences("locker_companion", Context.MODE_PRIVATE);
-            sp.edit().clear().apply();
+            sp.edit().remove("pc_name").remove("pc_ip").remove("pc_secret").remove("paired_at").apply();
+            android.content.SharedPreferences sp2 = mActivity.getSharedPreferences("locker_native_prefs", Context.MODE_PRIVATE);
+            sp2.edit().clear().apply();
         } catch (Exception ignored) {}
         BiometricKeys.deleteKey(); // unpair = the fingerprint key dies with it
     }

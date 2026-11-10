@@ -1,4 +1,4 @@
-﻿using System.Runtime.InteropServices;
+using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Interop;
@@ -36,7 +36,7 @@ public partial class GuardPopup : Window
         if (isLock)
         {
             UnlockBtn.Content = "Lock";
-            Status.Text = "Lock korte password dao";
+            Status.Text = "Enter password to lock";
         }
 
         Loaded += (_, _) =>
@@ -93,7 +93,7 @@ public partial class GuardPopup : Window
 
             Dispatcher.Invoke(() =>
             {
-                Status.Text = "Phone biometric check hocche...";
+                Status.Text = "Checking phone biometrics...";
             });
 
             var res = await PhoneCompanionService.RequestVaultKeyAsync(target, isLock, 15000);
@@ -119,7 +119,7 @@ public partial class GuardPopup : Window
             {
                 Dispatcher.Invoke(() =>
                 {
-                    Status.Text = "Phone er fingerprint bodleche. Master Password dao, abar link hobe";
+                    Status.Text = "Phone fingerprints changed. Enter Master Password to re-link";
                     PwBox.Focus();
                 });
             }
@@ -141,8 +141,24 @@ public partial class GuardPopup : Window
         FormPanel.Visibility = Visibility.Collapsed;
         GlyphIcon.Visibility = Visibility.Collapsed;
         DotsPanel.Visibility = Visibility.Visible;
+        OpProgressBar.Value = 0;
+        ProgressDetail.Text = "";
+        ProgressPanel.Visibility = Visibility.Collapsed;
         StartDots();
         Status.Text = text;
+    }
+
+    public void UpdateProgress(string verb, FolderProgress p)
+    {
+        ProgressPanel.Visibility = Visibility.Visible;
+        OpProgressBar.Value = p.Percent;
+        int pct = (int)Math.Round(p.Percent);
+        Status.Text = p.TotalFiles > 0 ? $"{verb}... {pct}%" : $"{verb}...";
+        string sizeInfo = p.TotalBytes > 0
+            ? $" • {FolderProgress.FormatSize(p.BytesDone)}/{FolderProgress.FormatSize(p.TotalBytes)}"
+            : "";
+        string filePart = string.IsNullOrEmpty(p.CurrentFile) ? "" : $" • {p.CurrentFile}";
+        ProgressDetail.Text = p.TotalFiles > 0 ? $"{p.FilesDone}/{p.TotalFiles}{sizeInfo}{filePart}" : "";
     }
 
     public void SetStatus(string glyph, string title, string sub)
@@ -152,6 +168,7 @@ public partial class GuardPopup : Window
         StopDots();
         FormPanel.Visibility = Visibility.Collapsed;
         DotsPanel.Visibility = Visibility.Collapsed;
+        ProgressPanel.Visibility = Visibility.Collapsed;
         GlyphIcon.Visibility = Visibility.Visible;
         GlyphIcon.Text = glyph;
 
@@ -244,8 +261,8 @@ public partial class GuardPopup : Window
         bool locked = left > 0;
         UnlockBtn.IsEnabled = !locked;
         PwBox.IsEnabled = PwText.IsEnabled = !locked;
-        if (locked) Status.Text = $"Bhul password. {left}s por abar try koro";
-        else if (Status.Text.StartsWith("Bhul password.")) Status.Text = IsLockOperation ? "Lock korte password dao" : "Password dao";
+        if (locked) Status.Text = $"Incorrect password. Try again in {left}s";
+        else if (Status.Text.StartsWith("Incorrect password.")) Status.Text = IsLockOperation ? "Enter password to lock" : "Enter password";
     }
 
     private string CurrentPw => _showPw ? PwText.Text : PwBox.Password;
@@ -277,7 +294,7 @@ public partial class GuardPopup : Window
         if (key == null)
         {
             LockoutTracker.RecordFail();
-            Status.Text = "Bhul password";
+            Status.Text = "Incorrect password";
             Shake();
             PwBox.Clear(); PwText.Clear();
             UpdateLockout();

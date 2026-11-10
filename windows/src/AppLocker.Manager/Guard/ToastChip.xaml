@@ -8,8 +8,8 @@
         Opacity="0">
 
     <Grid Margin="6,4">
-        <Border x:Name="Card" CornerRadius="10" Background="#F00A0A14"
-                BorderBrush="#2A2A3E" BorderThickness="1">
+        <Border x:Name="Card" CornerRadius="10" Background="#F00F0E0B"
+                BorderBrush="#32312E" BorderThickness="1">
             <Border.Effect>
                 <DropShadowEffect BlurRadius="10" ShadowDepth="3" Opacity="0.5"
                                   Color="#000000" Direction="270"/>
@@ -23,10 +23,10 @@
 
                 <!-- Text stack -->
                 <StackPanel VerticalAlignment="Center">
-                    <TextBlock x:Name="TitleText" Text="Paired!" Foreground="#F4F4F7"
+                    <TextBlock x:Name="TitleText" Text="Paired!" Foreground="#F7F6F3"
                                FontSize="12" FontWeight="SemiBold"
                                TextTrimming="CharacterEllipsis" MaxWidth="180"/>
-                    <TextBlock x:Name="SubText" Text="" Foreground="#8E8EA8"
+                    <TextBlock x:Name="SubText" Text="" Foreground="#989794"
                                FontSize="11" TextTrimming="CharacterEllipsis"
                                MaxWidth="180" Margin="0,1,0,0"/>
                 </StackPanel>

@@ -45,8 +45,8 @@ public class PasswordPromptDialog : Window
 		};
 		Border border = new Border
 		{
-			Background = new SolidColorBrush(Color.FromRgb(12, 12, 20)),
-			BorderBrush = new SolidColorBrush(Color.FromRgb(31, 31, 44)),
+			Background = new SolidColorBrush(Color.FromRgb(16, 15, 12)),
+			BorderBrush = new SolidColorBrush(Color.FromRgb(37, 36, 33)),
 			BorderThickness = new Thickness(1.0),
 			CornerRadius = new CornerRadius(14.0),
 			Padding = new Thickness(22.0),
@@ -66,7 +66,7 @@ public class PasswordPromptDialog : Window
 			Children = { (UIElement)new TextBlock
 			{
 				Text = prompt,
-				Foreground = new SolidColorBrush(Color.FromRgb(244, 244, 247)),
+				Foreground = new SolidColorBrush(Color.FromRgb(247, 246, 243)),
 				FontSize = 13.5,
 				FontWeight = FontWeights.SemiBold,
 				Margin = new Thickness(0.0, 0.0, 0.0, 12.0)
@@ -75,10 +75,10 @@ public class PasswordPromptDialog : Window
 		_pw = new PasswordBox
 		{
 			Height = 36.0,
-			Background = new SolidColorBrush(Color.FromRgb(18, 18, 26)),
-			Foreground = new SolidColorBrush(Color.FromRgb(244, 244, 247)),
+			Background = new SolidColorBrush(Color.FromRgb(22, 21, 18)),
+			Foreground = new SolidColorBrush(Color.FromRgb(247, 246, 243)),
 			CaretBrush = Brushes.White,
-			BorderBrush = new SolidColorBrush(Color.FromRgb(40, 40, 58)),
+			BorderBrush = new SolidColorBrush(Color.FromRgb(48, 47, 44)),
 			BorderThickness = new Thickness(1.0),
 			Padding = new Thickness(10.0, 6.0, 10.0, 6.0),
 			FontSize = 13.0,
@@ -87,7 +87,7 @@ public class PasswordPromptDialog : Window
 		stackPanel.Children.Add(_pw);
 		_err = new TextBlock
 		{
-			Text = "Bhul Master Password!",
+			Text = "Incorrect Master Password!",
 			Foreground = new SolidColorBrush(Color.FromRgb(239, 68, 68)),
 			FontSize = 11.5,
 			Margin = new Thickness(0.0, 0.0, 0.0, 10.0),
@@ -109,9 +109,9 @@ public class PasswordPromptDialog : Window
 			Content = "Cancel",
 			Height = 34.0,
 			Cursor = Cursors.Hand,
-			Background = new SolidColorBrush(Color.FromRgb(23, 23, 34)),
-			Foreground = new SolidColorBrush(Color.FromRgb(142, 142, 160)),
-			BorderBrush = new SolidColorBrush(Color.FromRgb(34, 34, 50)),
+			Background = new SolidColorBrush(Color.FromRgb(28, 27, 24)),
+			Foreground = new SolidColorBrush(Color.FromRgb(150, 149, 146)),
+			BorderBrush = new SolidColorBrush(Color.FromRgb(41, 40, 37)),
 			BorderThickness = new Thickness(1.0),
 			FontWeight = FontWeights.SemiBold,
 			IsCancel = true
@@ -141,7 +141,7 @@ public class PasswordPromptDialog : Window
 			Height = 34.0,
 			Cursor = Cursors.Hand,
 			Background = Brushes.White,
-			Foreground = new SolidColorBrush(Color.FromRgb(9, 9, 14)),
+			Foreground = new SolidColorBrush(Color.FromRgb(12, 11, 8)),
 			BorderThickness = new Thickness(0.0),
 			FontWeight = FontWeights.Bold,
 			IsDefault = true
@@ -160,7 +160,7 @@ public class PasswordPromptDialog : Window
 				}
 				else
 				{
-					_err.Text = "Bhul Master Password!";
+					_err.Text = "Incorrect Master Password!";
 				}
 				_err.Visibility = Visibility.Visible;
 				_pw.BorderBrush = new SolidColorBrush(Color.FromRgb(239, 68, 68));
@@ -217,7 +217,7 @@ public class PasswordPromptDialog : Window
 		int left = LockoutTracker.SecondsRemaining();
 		if (left > 0)
 		{
-			_err.Text = "Onek bhul try. " + LockoutTracker.Format(left) + " por abar try koro.";
+			_err.Text = "Too many incorrect attempts. Try again in " + LockoutTracker.Format(left) + ".";
 			_err.Visibility = Visibility.Visible;
 			_pw.IsEnabled = false;
 			if (_confirm != null)

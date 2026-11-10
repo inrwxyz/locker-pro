@@ -45,11 +45,15 @@ public class GuardServer
             try
             {
                 var ps = new PipeSecurity();
-                var sid = new SecurityIdentifier(WellKnownSidType.WorldSid, null);
+                var admins = new SecurityIdentifier(WellKnownSidType.BuiltinAdministratorsSid, null);
+                var system = new SecurityIdentifier(WellKnownSidType.LocalSystemSid, null);
                 ps.AddAccessRule(new PipeAccessRule(new SecurityIdentifier(WellKnownSidType.NetworkSid, null),
                     PipeAccessRights.FullControl, AccessControlType.Deny));
-                ps.AddAccessRule(new PipeAccessRule(sid,
-                    PipeAccessRights.ReadWrite | PipeAccessRights.CreateNewInstance,
+                ps.AddAccessRule(new PipeAccessRule(system,
+                    PipeAccessRights.FullControl,
+                    AccessControlType.Allow));
+                ps.AddAccessRule(new PipeAccessRule(admins,
+                    PipeAccessRights.FullControl,
                     AccessControlType.Allow));
 
                 server = NamedPipeServerStreamAcl.Create(

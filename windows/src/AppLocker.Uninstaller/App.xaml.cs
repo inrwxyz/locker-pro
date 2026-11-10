@@ -46,7 +46,11 @@ public partial class App : Application
         string? initialPw = null;
         for (int i = 0; i < e.Args.Length; i++)
         {
-            if (e.Args[i] == "--pw" && i + 1 < e.Args.Length)
+            if (e.Args[i] == "--handoff" && i + 1 < e.Args.Length)
+            {
+                initialPw = Core.Uninstaller.ConsumeUninstallHandoff(e.Args[i + 1]);
+            }
+            else if (e.Args[i] == "--pw" && i + 1 < e.Args.Length)
             {
                 initialPw = e.Args[i + 1];
             }

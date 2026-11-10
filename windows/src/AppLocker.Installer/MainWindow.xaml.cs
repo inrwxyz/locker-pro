@@ -6,6 +6,8 @@ using System.IO.Compression;
 
 using System.Reflection;
 
+using System.Runtime.InteropServices;
+
 using System.Windows;
 
 using System.Windows.Input;
@@ -21,6 +23,12 @@ namespace AppLocker.Installer;
 public partial class MainWindow : Window
 
 {
+
+    [DllImport("shell32.dll", CharSet = CharSet.Auto)]
+    private static extern void SHChangeNotify(uint wEventId, uint uFlags, IntPtr dwItem1, IntPtr dwItem2);
+
+    private const uint SHCNE_ASSOCCHANGED = 0x08000000;
+    private const uint SHCNF_IDLIST = 0x0000;
 
     private readonly string _targetDir = Path.Combine(
 
@@ -389,42 +397,36 @@ public partial class MainWindow : Window
 
         // 5. Create Shortcuts
 
+        string shortcutIcon = lockerExe + ",0";
         if (desktopIcon)
-
         {
-
             UpdateDetail("Creating Desktop shortcut...");
-
             try
-
             {
+                string commonDesktopLnk = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonDesktopDirectory), "Locker.lnk");
+                try { if (File.Exists(commonDesktopLnk)) File.Delete(commonDesktopLnk); } catch { }
 
                 string desktopPath = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
-
-                CreateShortcut(Path.Combine(desktopPath, "Locker.lnk"), lockerExe, _targetDir, iconPath);
-
+                CreateShortcut(Path.Combine(desktopPath, "Locker.lnk"), lockerExe, _targetDir, shortcutIcon);
             }
-
             catch { }
-
         }
-
-
 
         // Start Menu shortcut
-
         try
-
         {
-
             string startMenu = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Programs), "Locker");
-
             Directory.CreateDirectory(startMenu);
-
-            CreateShortcut(Path.Combine(startMenu, "Locker.lnk"), lockerExe, _targetDir, iconPath);
-
+            CreateShortcut(Path.Combine(startMenu, "Locker.lnk"), lockerExe, _targetDir, shortcutIcon);
         }
+        catch { }
 
+        // Force Windows Explorer to refresh shortcut/EXE icon cache
+        try
+        {
+            SHChangeNotify(SHCNE_ASSOCCHANGED, SHCNF_IDLIST, IntPtr.Zero, IntPtr.Zero);
+            Process.Start(new ProcessStartInfo("ie4uinit.exe", "-show") { CreateNoWindow = true, UseShellExecute = false })?.WaitForExit(1500);
+        }
         catch { }
 
 
@@ -478,48 +480,27 @@ public partial class MainWindow : Window
 
         catch { }
 
-        try
-        {
-            Process.Start(new ProcessStartInfo(lockerExe)
-            {
-                UseShellExecute = true,
-                WorkingDirectory = _targetDir
-            });
-        }
-        catch { }
-
     }
 
 
 
     private static void CreateShortcut(string shortcutPath, string targetPath, string workingDir, string iconPath)
-
     {
-
         try
-
         {
+            try { if (File.Exists(shortcutPath)) File.Delete(shortcutPath); } catch { }
 
             Type? shellType = Type.GetTypeFromProgID("WScript.Shell");
-
             if (shellType == null) return;
 
             dynamic shell = Activator.CreateInstance(shellType)!;
-
             dynamic shortcut = shell.CreateShortcut(shortcutPath);
-
             shortcut.TargetPath = targetPath;
-
             shortcut.WorkingDirectory = workingDir;
-
             shortcut.IconLocation = iconPath;
-
             shortcut.Save();
-
         }
-
         catch { }
-
     }
 
 

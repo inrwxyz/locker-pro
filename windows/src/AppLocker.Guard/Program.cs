@@ -29,7 +29,7 @@ if (!File.Exists(target)) return;
 
 ProcessProtector.Protect(); // Resist End Task
 
-using var stop = new EventWaitHandle(false, EventResetMode.ManualReset, "AppLockerWatchdogStop");
+using var stop = DirHarden.OpenOrCreateWatchdogStopEvent();
 string targetName = Path.GetFileNameWithoutExtension(target);
 
 while (true)
@@ -39,13 +39,16 @@ while (true)
 
     try
     {
-        if (Process.GetProcessesByName(targetName).Length == 0)
+        var procs = Process.GetProcessesByName(targetName);
+        bool running = procs.Length > 0;
+        foreach (var proc in procs) proc.Dispose();
+        if (!running)
         {
             Process.Start(new ProcessStartInfo(target, targetArgs)
             {
                 UseShellExecute = true,
                 WorkingDirectory = Path.GetDirectoryName(target)!
-            });
+            })?.Dispose();
         }
     }
     catch

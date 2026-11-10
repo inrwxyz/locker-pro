@@ -15,13 +15,21 @@ public class GuardHost
     private LockSession? _session;
     private ExplorerWatcher? _explorer;
     private AppGuard? _apps;
-    private LockChipWindow? _chip;
-    private bool _busy;
+    private readonly Dictionary<string, LockChipWindow> _chips =
+        new(StringComparer.OrdinalIgnoreCase);
+    private readonly List<string> _chipOrder = new();
+    private volatile bool _busy;
+    private readonly object _registryGate = new();
+    private readonly object _autoLockGate = new();
+    private DateTime _cachedItemsWriteUtc = DateTime.MinValue;
+    private List<string> _cachedLockedFolders = new();
     private readonly Dictionary<string, RenameWatcher> _watchers =
         new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, DateTime> _folderUnlockTimes =
         new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, int> _missingCounts =
+        new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, DateTime> _sealRetryAfter =
         new(StringComparer.OrdinalIgnoreCase);
 
     private bool HasOpen => _session != null && _session.OpenFolders.Count > 0;
@@ -31,11 +39,7 @@ public class GuardHost
         foreach (var f in LockRegistry.List()) EnsureWatcher(f);
 
         _explorer = new ExplorerWatcher(
-            p =>
-            {
-                try { return Application.Current.Dispatcher.Invoke(() => LockedFolderFor(p)); }
-                catch { return null; }
-            },
+            LockedFolderFor,
             f =>
             {
                 try { Application.Current.Dispatcher.InvokeAsync(() => { Handle("open|" + f); }); }
@@ -54,26 +58,54 @@ public class GuardHost
     {
         _explorer?.Stop();
         _apps?.Dispose();
-        try { _chip?.Close(); } catch { }
-        _chip = null;
+        foreach (var c in _chips.Values.ToList())
+        {
+            try { c.Close(); } catch { }
+        }
+        _chips.Clear();
+        _chipOrder.Clear();
         try { _session?.SealAll(); } catch { }
         foreach (var w in _watchers.Values) w.Dispose();
         _watchers.Clear();
-        _folderUnlockTimes.Clear();
-        _missingCounts.Clear();
+        lock (_autoLockGate)
+        {
+            _folderUnlockTimes.Clear();
+            _missingCounts.Clear();
+            _sealRetryAfter.Clear();
+        }
     }
 
+    private List<string> GetRegisteredFoldersCached()
+    {
+        lock (_registryGate)
+        {
+            try
+            {
+                string path = LockRegistry.FilePath;
+                DateTime mtime = File.Exists(path) ? File.GetLastWriteTimeUtc(path) : DateTime.MinValue;
+                if (mtime != _cachedItemsWriteUtc)
+                {
+                    _cachedLockedFolders = LockRegistry.List();
+                    _cachedItemsWriteUtc = mtime;
+                }
+            }
+            catch { }
+            return _cachedLockedFolders;
+        }
+    }
+
+    // Called from ExplorerWatcher's background STA thread: must stay lock-free of the UI Dispatcher
     public string? LockedFolderFor(string path)
     {
-        foreach (var raw in LockRegistry.List())
+        var session = Volatile.Read(ref _session);
+        foreach (var raw in GetRegisteredFoldersCached())
         {
             string folder = raw.TrimEnd('\\');
             bool inside = path.Equals(folder, StringComparison.OrdinalIgnoreCase) ||
                           path.StartsWith(folder + "\\", StringComparison.OrdinalIgnoreCase);
             if (!inside) continue;
             if (!FolderLocker.IsLocked(folder)) return null;
-            if (_session != null &&
-                _session.OpenFolders.Contains(folder, StringComparer.OrdinalIgnoreCase))
+            if (session != null && session.IsFolderOpen(folder))
                 return null;
             return folder;
         }
@@ -149,7 +181,7 @@ public class GuardHost
     {
         if (!MasterConfig.IsSetup())
         {
-            ShowNotice("\uE783", "Setup lagbe", "Age Locker khule ekbar password set koro");
+            ShowNotice("\uE783", "Setup required", "Open Locker once to set a Master Password");
             return "not-setup";
         }
 
@@ -163,7 +195,7 @@ public class GuardHost
         string? why = ValidateLock(path, isFolder);
         if (why != null)
         {
-            ShowNotice("\uE783", "Lock hobe na", why);
+            ShowNotice("\uE783", "Cannot lock", why);
             return "denied";
         }
 
@@ -196,14 +228,14 @@ public class GuardHost
     {
         if (isFolder)
         {
-            if (!Directory.Exists(path)) return "Folder pawa jayni";
+            if (!Directory.Exists(path)) return "Folder not found";
             if (FolderLocker.IsLocked(path)) return "Already locked";
             if (!LockSafety.IsSafeFolder(path, out string why)) return why;
             return null;
         }
         if (!File.Exists(path) || !path.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
-            return "Eta .exe na";
-        if (AppRegistry.IsBlocked(path)) return "System/Locker program lock hobe na";
+            return "Selected file is not an .exe";
+        if (AppRegistry.IsBlocked(path)) return "System or Locker programs cannot be locked";
         if (AppRegistry.IsLocked(path)) return "Already locked";
         return null;
     }
@@ -215,16 +247,17 @@ public class GuardHost
         try
         {
             win = new GuardPopup(path, isLock: true) { Topmost = true };
-            win.SetPrompt("Lock", "Lock korte password dao", isLock: true);
+            win.SetPrompt("Lock", "Enter password to lock", isLock: true);
             byte[]? key = await win.AskAsync();
             if (key == null) return;
 
             win.ShowBusy("Locking...");
-            await Task.Delay(250);
+            await Task.Delay(150);
 
             if (isFolder)
             {
-                await Task.Run(() => FolderLocker.Lock(path, key));
+                var progress = new Progress<FolderProgress>(p => win.UpdateProgress("Locking", p));
+                await Task.Run(() => FolderLocker.Lock(path, key, progress));
                 EnsureWatcher(path);
             }
             Array.Clear(key);
@@ -235,7 +268,7 @@ public class GuardHost
         {
             if (win != null)
             {
-                try { await win.ShowResult("\uE783", "Error", ex.Message); } catch { }
+                try { await win.ShowResult("\uE783", "Error", ex.Message, 2500); } catch { }
             }
         }
         finally
@@ -263,11 +296,25 @@ public class GuardHost
 
             win.ShowBusy("Opening...");
 
-            _session = new LockSession(key);
-            bool ok = await Task.Run(() => _session.OpenFolder(folder));
+            var session = _session;
+            bool createdNew = false;
+            if (session == null)
+            {
+                session = new LockSession(key);
+                _session = session;
+                createdNew = true;
+            }
+            else
+            {
+                Array.Clear(key);
+            }
+
+            var progress = new Progress<FolderProgress>(p => win.UpdateProgress("Opening", p));
+            bool ok = await Task.Run(() => session.OpenFolder(folder, progress));
             if (!ok)
             {
-                await win.ShowResult("\uE783", "Open hoyni", name);
+                if (createdNew && session.OpenFolders.Count == 0) _session = null;
+                await win.ShowResult("\uE783", "Failed to open", name, 1800);
                 _explorer?.Cancel(folder);
                 return;
             }
@@ -281,37 +328,30 @@ public class GuardHost
 
             await Task.Delay(150);
 
-            // Navigate the SAME Explorer tab directly into the decrypted folder
-            _explorer?.Restore(folder, () => OpenInExplorer(folder));
+            // Manual open mode: do not force Explorer tab navigation. User opens the decrypted folder manually in Explorer.
+            _explorer?.Forget(folder);
             restored = true;
 
             // Set grace period timestamp and reset missing count
-            _folderUnlockTimes[folder] = DateTime.UtcNow;
-            _missingCounts[folder] = 0;
+            lock (_autoLockGate)
+            {
+                _folderUnlockTimes[folder] = DateTime.UtcNow;
+                _missingCounts[folder] = 0;
+                _sealRetryAfter.Remove(folder);
+            }
 
             InexIslandBridge.NotifyUnlock(win.AuthType, name);
 
             await win.ShowResult("\uE73E", "Unlocked", name, 650);
 
-            // Display or update the single corner LockChipWindow
-            if (_chip == null || !_chip.IsLoaded)
-            {
-                _chip = new LockChipWindow();
-                _chip.SetFolder(Label());
-                _chip.LockClicked += OnLockNow;
-                _chip.Closed += (_, _) => { _chip = null; };
-                _chip.Show();
-            }
-            else
-            {
-                _chip.SetFolder(Label());
-            }
+            ShowOrUpdateChip(folder);
         }
         catch (Exception ex)
         {
+            if (_session != null && _session.OpenFolders.Count == 0) _session = null;
             if (win != null)
             {
-                try { await win.ShowResult("\uE783", "Error", ex.Message); } catch { }
+                try { await win.ShowResult("\uE783", "Error", ex.Message, 2600); } catch { }
             }
             _explorer?.Cancel(folder);
         }
@@ -325,55 +365,102 @@ public class GuardHost
         }
     }
 
-    private async void OnLockNow()
+    private void ShowOrUpdateChip(string folder)
+    {
+        string key = folder.TrimEnd('\\');
+        string label = Path.GetFileName(key);
+        if (string.IsNullOrEmpty(label)) label = key;
+
+        if (_chips.TryGetValue(key, out var existing) && existing.IsLoaded)
+        {
+            existing.SetFolder(label);
+            return;
+        }
+
+        int slot = _chipOrder.Count;
+        var chip = new LockChipWindow(key, slot);
+        chip.SetFolder(label);
+        chip.LockClicked += () => OnLockFolderNow(key);
+        chip.Closed += (_, _) =>
+        {
+            if (_chips.Remove(key))
+            {
+                _chipOrder.RemoveAll(x => x.Equals(key, StringComparison.OrdinalIgnoreCase));
+                RepositionChips();
+            }
+        };
+        _chips[key] = chip;
+        _chipOrder.RemoveAll(x => x.Equals(key, StringComparison.OrdinalIgnoreCase));
+        _chipOrder.Add(key);
+        chip.Show();
+        RepositionChips();
+    }
+
+    private void RepositionChips()
+    {
+        for (int i = 0; i < _chipOrder.Count; i++)
+        {
+            if (_chips.TryGetValue(_chipOrder[i], out var chip))
+            {
+                chip.SetSlot(i, animate: true);
+            }
+        }
+    }
+
+    private async void OnLockFolderNow(string folder)
     {
         if (_busy || _session == null) return;
+        string key = folder.TrimEnd('\\');
+        string label = Path.GetFileName(key);
+        if (string.IsNullOrEmpty(label)) label = key;
+
         _busy = true;
-        var chip = _chip;
+        _chips.TryGetValue(key, out var chip);
         chip?.ShowBusy("Locking...");
         try
         {
-            var openFolders = _session?.OpenFolders.ToList() ?? new List<string>();
-            if (_explorer != null && _session != null)
-            {
-                foreach (var f in openFolders)
-                {
-                    _explorer.NavigateAway(f);
-                }
-            }
+            _explorer?.NavigateAway(key);
             await Task.Delay(250);
 
+            var progress = new Progress<FolderProgress>(p => chip?.ShowProgress(p));
+            bool ok = false;
             if (_session != null)
             {
-                await Task.Run(() => _session.SealAll());
+                ok = await Task.Run(() => _session.SealFolder(key, progress));
             }
 
-            _session = null;
-            _folderUnlockTimes.Clear();
-            _missingCounts.Clear();
-
-            // tray "Lock Now": tell the island once (it used to ignore this event, and N folders would
-            // otherwise flash N toasts back to back)
-            if (openFolders.Count == 1)
-                InexIslandBridge.NotifyLock(Path.GetFileName(openFolders[0].TrimEnd('\\')));
-            else if (openFolders.Count > 1)
-                InexIslandBridge.NotifyLock($"{openFolders.Count} folders");
-
-            chip?.ShowLockedAndClose();
-            _chip = null;
+            if (ok)
+            {
+                lock (_autoLockGate)
+                {
+                    _folderUnlockTimes.Remove(key);
+                    _missingCounts.Remove(key);
+                    _sealRetryAfter.Remove(key);
+                }
+                _explorer?.ForgetFolderTracking(key);
+                InexIslandBridge.NotifyLock(label);
+                chip?.ShowLockedAndClose();
+                if (!HasOpen) _session = null;
+            }
+            else
+            {
+                // A file inside the folder is currently open in another program; defer auto-retry briefly
+                lock (_autoLockGate)
+                {
+                    _missingCounts[key] = 0;
+                    _sealRetryAfter[key] = DateTime.UtcNow.AddSeconds(15);
+                }
+                chip?.ResetReady(label);
+            }
         }
-        catch { }
+        catch
+        {
+            if (_session != null && _session.IsFolderOpen(key)) chip?.ResetReady(label);
+        }
         finally
         {
             _busy = false;
         }
-    }
-
-    private string Label()
-    {
-        var open = _session?.OpenFolders;
-        if (open == null || open.Count == 0) return "Locker";
-        return open.Count == 1 ? Path.GetFileName(open.First().TrimEnd('\\')) : $"{open.Count} folders";
     }
 
     private async Task<bool> AskApp(string exePath)
@@ -458,27 +545,44 @@ public class GuardHost
     {
         try
         {
-            if (_session == null || _session.OpenFolders.Count == 0) return;
+            if (_busy) return;
+            var session = Volatile.Read(ref _session);
+            if (session == null || session.OpenFolders.Count == 0) return;
 
             var toRelock = new List<string>();
             DateTime now = DateTime.UtcNow;
 
-            foreach (var folder in _session.OpenFolders.ToList())
+            lock (_autoLockGate)
             {
-                string norm = folder.TrimEnd('\\');
-                bool stillOpen = activePaths.Any(p =>
-                    p.Equals(norm, StringComparison.OrdinalIgnoreCase) ||
-                    p.StartsWith(norm + "\\", StringComparison.OrdinalIgnoreCase));
+                foreach (var folder in session.OpenFolders)
+                {
+                    string norm = folder.TrimEnd('\\');
+                    string? matchedActive = activePaths.FirstOrDefault(p =>
+                        p.Equals(norm, StringComparison.OrdinalIgnoreCase) ||
+                        p.StartsWith(norm + "\\", StringComparison.OrdinalIgnoreCase));
 
-                if (stillOpen)
-                {
-                    _missingCounts[folder] = 0;
-                }
-                else
-                {
-                    // Grace period check: don't relock if folder was opened within the last 6 seconds
+                    if (matchedActive != null)
+                    {
+                        _explorer?.NoteOpenFolderPath(norm, matchedActive);
+                        _missingCounts[folder] = 0;
+                        continue;
+                    }
+
                     if (_folderUnlockTimes.TryGetValue(folder, out var openedAt) &&
-                        (now - openedAt) < TimeSpan.FromSeconds(6))
+                        (now - openedAt) < TimeSpan.FromSeconds(8))
+                    {
+                        continue;
+                    }
+
+                    // Win 11 multi-tab Explorer only exposes the active tab via LocationURL;
+                    // keep the folder unlocked if its tab is still open in the background.
+                    if (_explorer != null && _explorer.IsFolderTabOpen(norm))
+                    {
+                        _missingCounts[folder] = 0;
+                        continue;
+                    }
+
+                    if (_sealRetryAfter.TryGetValue(folder, out var retryAfter) && now < retryAfter)
                     {
                         continue;
                     }
@@ -486,40 +590,75 @@ public class GuardHost
                     int count = _missingCounts.TryGetValue(folder, out var c) ? c + 1 : 1;
                     _missingCounts[folder] = count;
 
-                    // Only relock after missing for 4 consecutive polling ticks (~2-3s)
-                    if (count >= 4)
+                    if (count >= 5)
                     {
                         toRelock.Add(folder);
                     }
                 }
             }
 
-            if (toRelock.Count > 0)
+            if (toRelock.Count == 0) return;
+
+            Application.Current.Dispatcher.InvokeAsync(async () =>
             {
-                Application.Current.Dispatcher.InvokeAsync(async () =>
+                if (_busy || _session == null) return;
+                _busy = true;
+                try
                 {
                     foreach (var f in toRelock)
                     {
-                        _missingCounts.Remove(f);
-                        _folderUnlockTimes.Remove(f);
-                        try { _session?.SealFolder(f); } catch { }
-                        InexIslandBridge.NotifyLock(Path.GetFileName(f.TrimEnd('\\')));
+                        if (_session == null) break;
+                        string norm = f.TrimEnd('\\');
+                        string label = Path.GetFileName(norm);
+                        if (string.IsNullOrEmpty(label)) label = norm;
+                        _chips.TryGetValue(norm, out var chip);
+                        chip?.ShowBusy("Locking...");
+                        var progress = new Progress<FolderProgress>(p => chip?.ShowProgress(p));
+
+                        bool ok = false;
+                        try
+                        {
+                            ok = await Task.Run(() => _session.SealFolder(f, progress));
+                        }
+                        catch { }
+
+                        if (ok)
+                        {
+                            lock (_autoLockGate)
+                            {
+                                _missingCounts.Remove(f);
+                                _folderUnlockTimes.Remove(f);
+                                _sealRetryAfter.Remove(f);
+                            }
+                            _explorer?.ForgetFolderTracking(norm);
+                            InexIslandBridge.NotifyLock(label);
+                            if (chip != null)
+                            {
+                                await chip.FadeOutAndClose();
+                            }
+                        }
+                        else
+                        {
+                            // A file (e.g. playing video) is open; pause before retrying instead of spamming
+                            lock (_autoLockGate)
+                            {
+                                _missingCounts[f] = 0;
+                                _sealRetryAfter[f] = DateTime.UtcNow.AddSeconds(15);
+                            }
+                            chip?.ResetReady(label);
+                        }
                     }
+
                     if (!HasOpen)
                     {
                         _session = null;
-                        if (_chip != null)
-                        {
-                            await _chip.FadeOutAndClose();
-                            _chip = null;
-                        }
                     }
-                    else
-                    {
-                        _chip?.SetFolder(Label());
-                    }
-                });
-            }
+                }
+                finally
+                {
+                    _busy = false;
+                }
+            });
         }
         catch { }
     }

@@ -92,7 +92,7 @@ public static class PortableVaultService
             throw new InvalidOperationException(why);
 
         if (IsVault(folderPath))
-            throw new InvalidOperationException("Ei folder already ekta vault.");
+            throw new InvalidOperationException("This folder is already a vault.");
 
         if (string.IsNullOrEmpty(password) || password.Length < 4)
             throw new ArgumentException("Vault password must be at least 4 characters long.");
@@ -216,7 +216,7 @@ public static class PortableVaultService
     private static byte[] OpenVaultKey(VaultMetadata meta, string password)
     {
         if (string.IsNullOrEmpty(password))
-            throw new UnauthorizedAccessException("Vault password likhun.");
+            throw new UnauthorizedAccessException("Enter vault password.");
 
         byte[] salt = Convert.FromBase64String(meta.SaltBase64);
         byte[] keyEnvPw = Convert.FromBase64String(meta.KeyEnvPwBase64);
@@ -332,10 +332,10 @@ public static class PortableVaultService
     private static string FailMessage(string what, List<string> failed)
     {
         var names = string.Join(", ", failed.Take(3).Select(f => Path.GetFileName(f)));
-        string more = failed.Count > 3 ? $" (+{failed.Count - 3} aro)" : "";
+        string more = failed.Count > 3 ? $" (+{failed.Count - 3} more)" : "";
         return what == "lock"
-            ? $"{failed.Count} ta file lock hoyni (onno program e khola?): {names}{more}. File bondho kore abar Lock koro."
-            : $"{failed.Count} ta file unlock hoyni (corrupt ba tampered): {names}{more}.";
+            ? $"{failed.Count} file(s) could not be locked (open in another app?): {names}{more}. Close them and try again."
+            : $"{failed.Count} file(s) could not be unlocked (corrupt or tampered): {names}{more}.";
     }
 
     private static byte[] EncryptKeyEnvelope(byte[] keyToEncrypt, byte[] masterKey)

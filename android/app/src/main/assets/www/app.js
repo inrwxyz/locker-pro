@@ -4,7 +4,7 @@
 // ==========================================
 
 const AppState = {
-  pairedPC: null, // { name, ip, secret, pairedAt }
+  pairedPC: null, // { name, ip, pairedAt } (secret stays in native Android Keystore/SharedPreferences)
   vibrateEnabled: true,
   pendingAuthTarget: null
 };
@@ -17,33 +17,42 @@ document.addEventListener('DOMContentLoaded', () => {
   setupSettingsSection();
   updatePCUI();
 
-  // Auto-sync check with PC on launch if not paired
+  // Auto-sync check with paired PC on launch (syncs unpair state if PC unpaired while phone was offline)
   setTimeout(() => {
-    if (!AppState.pairedPC && window.Android && window.Android.checkPairStatus) {
-      const ip = (document.getElementById('dash-pc-ip')?.value || '192.168.0.100').trim();
-      if (ip) {
-        window.Android.checkPairStatus(ip, 58820, '_onStartupAutoCheck');
-      }
+    if (AppState.pairedPC && AppState.pairedPC.ip && window.Android && window.Android.checkPairStatus) {
+      window.Android.checkPairStatus(AppState.pairedPC.ip, 58820, '_onStartupAutoCheck');
     }
   }, 400);
 });
 
-// Load settings from localStorage & Android native storage
+// Load settings from native storage & metadata cache (never store secret in localStorage)
 function loadStoredSettings() {
-  try {
-    const raw = localStorage.getItem('locker_paired_pc');
-    if (raw) AppState.pairedPC = JSON.parse(raw);
-  } catch (_) {}
-
-  // Native SharedPreferences fallback
-  if (!AppState.pairedPC && window.Android && window.Android.getPairedPCFromNative) {
+  if (window.Android && window.Android.getPairedPCFromNative) {
     try {
       const nativeRaw = window.Android.getPairedPCFromNative();
       if (nativeRaw && nativeRaw !== 'null') {
-        AppState.pairedPC = JSON.parse(nativeRaw);
+        const parsed = JSON.parse(nativeRaw);
+        AppState.pairedPC = { name: parsed.name || 'Locker PC', ip: parsed.ip || '', pairedAt: parsed.pairedAt || Date.now() };
       }
     } catch (_) {}
   }
+
+  // Purge any legacy localStorage copy that might have held a plaintext secret
+  try {
+    const raw = localStorage.getItem('locker_paired_pc');
+    if (raw) {
+      const old = JSON.parse(raw);
+      if (old && old.secret) {
+        if (AppState.pairedPC) {
+          localStorage.setItem('locker_paired_pc', JSON.stringify(AppState.pairedPC));
+        } else {
+          localStorage.removeItem('locker_paired_pc');
+        }
+      } else if (!AppState.pairedPC && old) {
+        AppState.pairedPC = old;
+      }
+    }
+  } catch (_) {}
 
   const vib = localStorage.getItem('locker_vibrate');
   AppState.vibrateEnabled = vib === null ? true : (vib === 'true');
@@ -125,9 +134,12 @@ function setupDashboardActions() {
   const btnUnpair = document.getElementById('btn-unpair-dash');
   if (btnUnpair) {
     btnUnpair.addEventListener('click', () => {
+      const pcIp = AppState.pairedPC?.ip || '';
       AppState.pairedPC = null;
       localStorage.removeItem('locker_paired_pc');
-      if (window.Android && window.Android.clearPairedPCFromNative) {
+      if (window.Android && window.Android.unpairFromPC) {
+        window.Android.unpairFromPC(pcIp, 58820);
+      } else if (window.Android && window.Android.clearPairedPCFromNative) {
         window.Android.clearPairedPCFromNative();
       }
       updatePCUI();
@@ -296,21 +308,16 @@ window.hideIncomingAuthBanner = function() {
   AppState.pendingAuthTarget = null;
 };
 
-// Helper: Save Paired PC State
-function savePairedPC(name, ip, secret) {
+// Helper: Save Paired PC Metadata (never persists pairing secret in localStorage)
+function savePairedPC(name, ip) {
   AppState.pairedPC = {
     name: name || 'Locker PC',
-    ip: ip,
-    secret: secret,
+    ip: ip || '',
     pairedAt: Date.now()
   };
   try {
     localStorage.setItem('locker_paired_pc', JSON.stringify(AppState.pairedPC));
   } catch (_) {}
-
-  if (window.Android && window.Android.savePairedPCToNative) {
-    window.Android.savePairedPCToNative(AppState.pairedPC.name, AppState.pairedPC.ip, AppState.pairedPC.secret);
-  }
 
   updatePCUI();
 }
@@ -381,11 +388,24 @@ function showToast(msg) {
 
 window.onPairSuccess = function(pcName, ip) {
   showToast('Paired with ' + pcName + '!');
-  if (typeof loadPairedPCFromNative === 'function') loadPairedPCFromNative();
-  setTimeout(() => {
-    if (typeof updatePCUI === 'function') updatePCUI();
-    if (typeof checkPairedState === 'function') checkPairedState();
-  }, 200);
+  if (window.Android && window.Android.getPairedPCFromNative) {
+    try {
+      const nativeRaw = window.Android.getPairedPCFromNative();
+      if (nativeRaw && nativeRaw !== 'null') {
+        const parsed = JSON.parse(nativeRaw);
+        savePairedPC(parsed.name || pcName, parsed.ip || ip);
+        return;
+      }
+    } catch (_) {}
+  }
+  savePairedPC(pcName, ip);
+};
+
+window.onPcUnpaired = function() {
+  AppState.pairedPC = null;
+  try { localStorage.removeItem('locker_paired_pc'); } catch (_) {}
+  updatePCUI();
+  showToast('Unpaired from PC');
 };
 
 window.onPairError = function(error) {

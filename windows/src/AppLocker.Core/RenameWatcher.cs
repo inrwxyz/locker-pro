@@ -31,13 +31,13 @@ public class RenameWatcher : IDisposable
 
         try
         {
-            Log?.Invoke($"Rename dhora poreche: {e.OldName} -> {e.Name}. Ferot nichhi...");
+            Log?.Invoke($"Rename detected: {e.OldName} -> {e.Name}. Reverting...");
             Directory.Move(e.FullPath, _lockedPath);
-            Log?.Invoke("Purono naam e ferot ana hoyeche.");
+            Log?.Invoke("Reverted to original name.");
         }
         catch (Exception ex)
         {
-            Log?.Invoke("Ferot ana jayni: " + ex.Message);
+            Log?.Invoke("Could not revert name: " + ex.Message);
         }
     }
 

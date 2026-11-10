@@ -26,7 +26,7 @@ public static class Uninstaller
                       ?? MasterConfig.GetKeyWithRecovery(passwordOrRecovery);
         if (key == null)
         {
-            return (false, "Master password ba recovery key bhul.");
+            return (false, "Incorrect Master Password or Recovery Key.");
         }
 
         int foldersUnlocked = 0;
@@ -192,12 +192,7 @@ public static class Uninstaller
         }
 
         // 8. Signal Guard to quit and kill running processes
-        try
-        {
-            using var stopEvt = new EventWaitHandle(false, EventResetMode.ManualReset, "AppLockerWatchdogStop");
-            stopEvt.Set();
-        }
-        catch { }
+        DirHarden.SignalWatchdogStop();
         try { GuardPipe.Send("quit|" + passwordOrRecovery, 300); } catch { }
         try
         {
@@ -216,6 +211,7 @@ public static class Uninstaller
             foreach (var p in Process.GetProcessesByName(pName))
             {
                 try { p.Kill(true); } catch { }
+                finally { p.Dispose(); }
             }
         }
 
@@ -303,6 +299,38 @@ del ""%~f0"" >nul 2>&1
         }
         catch { }
 
-        return (true, "Locker system theke successfully uninstall kora hoyeche.");
+        return (true, "Locker has been cleanly uninstalled from the system.");
+    }
+
+    private static string HandoffFilePath => Path.Combine(MasterConfig.ConfigDir, ".uninstall.tok");
+
+    public static string CreateUninstallHandoff(string passwordOrRecovery)
+    {
+        DirHarden.RestrictToAdminsAndSystem(MasterConfig.ConfigDir);
+        string token = Convert.ToHexString(System.Security.Cryptography.RandomNumberGenerator.GetBytes(16)).ToLowerInvariant();
+        long expires = DateTime.UtcNow.AddMinutes(2).Ticks;
+        string payload = token + "|" + expires + "|" + Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(passwordOrRecovery));
+        File.WriteAllText(HandoffFilePath, payload);
+        return token;
+    }
+
+    public static string? ConsumeUninstallHandoff(string token)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(token) || !File.Exists(HandoffFilePath)) return null;
+            string raw = File.ReadAllText(HandoffFilePath).Trim();
+            try { File.Delete(HandoffFilePath); } catch { }
+            var parts = raw.Split('|', 3);
+            if (parts.Length != 3) return null;
+            if (!string.Equals(parts[0], token, StringComparison.Ordinal)) return null;
+            if (!long.TryParse(parts[1], out long exp) || DateTime.UtcNow.Ticks > exp) return null;
+            return System.Text.Encoding.UTF8.GetString(Convert.FromBase64String(parts[2]));
+        }
+        catch
+        {
+            try { if (File.Exists(HandoffFilePath)) File.Delete(HandoffFilePath); } catch { }
+            return null;
+        }
     }
 }

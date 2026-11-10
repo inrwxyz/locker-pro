@@ -85,6 +85,14 @@ public class MainActivity extends FragmentActivity {
         triggerIncomingAuth(target, false);
     }
 
+    public void notifyUnpairedFromPc() {
+        runOnUiThread(() -> {
+            if (mWebView != null) {
+                mWebView.evaluateJavascript("if (window.onPcUnpaired) window.onPcUnpaired();", null);
+            }
+        });
+    }
+
     public void triggerIncomingAuth(String target, boolean fromNotification) {
         runOnUiThread(() -> {
             final String safeTarget = (target != null && !target.isEmpty()) ? target : "Protected Resource";

@@ -21,6 +21,11 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Resource Include="..\logo.png" Link="logo.png" />
+    <Resource Include="..\lock.ico" Link="lock.ico" />
+  </ItemGroup>
+
+  <ItemGroup>
     <RuntimeHostConfigurationOption Include="System.GC.ConserveMemory" Value="5" Trim="true" />
   </ItemGroup>
 

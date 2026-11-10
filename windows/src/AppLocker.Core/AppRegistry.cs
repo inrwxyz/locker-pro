@@ -162,7 +162,7 @@ public static class AppRegistry
         string full = AppResolver.FixLauncher(Path.GetFullPath(exePath), null);
         string file = Path.GetFileName(full);
         if (IsBlocked(full))
-            throw new InvalidOperationException("Ei system/AppLocker program lock kora jabe na: " + file);
+            throw new InvalidOperationException("System or Locker programs cannot be locked: " + file);
         if (!l.Contains(full, StringComparer.OrdinalIgnoreCase)) l.Add(full);
         Save(l);
     }

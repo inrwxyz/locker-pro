@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.NetworkInformation;
 using System.Net.Sockets;
 using System.Security.Cryptography;
 using System.Text;
@@ -32,6 +33,7 @@ public static class PhoneCompanionService
     private static DateTime _pendingSessionExpiresUtc = DateTime.MinValue;
     private static Action<PairedPhoneInfo>? _onPairedCallback;
     public static event Action<string, string>? OnBiometricApproved;
+    public static event Action? OnPhoneUnpaired;
     public static string LastAuthType { get; set; } = "fingerprint";
     public static string LastVaultToken { get; set; } = "";
 
@@ -198,6 +200,47 @@ public static class PhoneCompanionService
         return false;
     }
 
+    // Checks whether an IPv4 address belongs to the same Wi-Fi/LAN subnet as one of this PC's active NICs.
+    private static bool IsOnSameWiFiSubnet(IPAddress? a)
+    {
+        if (a == null) return false;
+        if (a.IsIPv4MappedToIPv6) a = a.MapToIPv4();
+        if (IPAddress.IsLoopback(a)) return true; // allow local ADB / loopback testing
+        if (a.AddressFamily == AddressFamily.InterNetworkV6) return a.IsIPv6LinkLocal;
+        if (a.AddressFamily != AddressFamily.InterNetwork) return false;
+
+        byte[] target = a.GetAddressBytes();
+        try
+        {
+            foreach (var ni in NetworkInterface.GetAllNetworkInterfaces())
+            {
+                if (ni.OperationalStatus != OperationalStatus.Up) continue;
+                if (ni.NetworkInterfaceType is NetworkInterfaceType.Loopback or NetworkInterfaceType.Tunnel) continue;
+                foreach (var ua in ni.GetIPProperties().UnicastAddresses)
+                {
+                    if (ua.Address.AddressFamily != AddressFamily.InterNetwork || ua.IPv4Mask == null) continue;
+                    byte[] local = ua.Address.GetAddressBytes();
+                    byte[] mask = ua.IPv4Mask.GetAddressBytes();
+                    bool match = true;
+                    for (int i = 0; i < 4; i++)
+                    {
+                        if ((local[i] & mask[i]) != (target[i] & mask[i])) { match = false; break; }
+                    }
+                    if (match) return true;
+                }
+            }
+        }
+        catch { }
+        return false;
+    }
+
+    private static bool PassesSameWiFiPolicy(IPAddress? remote)
+    {
+        var settings = LockerSettings.Current;
+        if (!settings.RequireSameWiFi) return true;
+        return IsOnSameWiFiSubnet(remote);
+    }
+
     private static string RemoteIp(TcpClient client)
     {
         var addr = (client.Client.RemoteEndPoint as IPEndPoint)?.Address;
@@ -263,7 +306,8 @@ public static class PhoneCompanionService
             try
             {
                 var client = await _listener.AcceptTcpClientAsync(ct);
-                if (!IsLanAddress((client.Client.RemoteEndPoint as IPEndPoint)?.Address))
+                var remoteAddr = (client.Client.RemoteEndPoint as IPEndPoint)?.Address;
+                if (!IsLanAddress(remoteAddr))
                 {
                     client.Close(); // never talk to the public internet
                     continue;
@@ -299,7 +343,8 @@ public static class PhoneCompanionService
 
                 if (action == "pair_qr" || action == "pair") await HandlePairQrAsync(client, root, writer);
                 else if (action == "ping") await HandlePingAsync(client, root, writer);
-                else if (action == "biometric_approved") await HandleApprovedAsync(root, writer);
+                else if (action == "biometric_approved") await HandleApprovedAsync(client, root, writer);
+                else if (action == "unpair") await HandleUnpairAsync(root, writer);
             }
             catch { }
         }
@@ -418,8 +463,15 @@ public static class PhoneCompanionService
         try { client.Client.Shutdown(SocketShutdown.Both); } catch { }
     }
 
-    private static async Task HandleApprovedAsync(JsonElement root, StreamWriter writer)
+    private static async Task HandleApprovedAsync(TcpClient client, JsonElement root, StreamWriter writer)
     {
+        var remoteAddr = (client.Client.RemoteEndPoint as IPEndPoint)?.Address;
+        if (!PassesSameWiFiPolicy(remoteAddr))
+        {
+            await Reply(writer, new { status = "wrong_wifi" });
+            return;
+        }
+
         var paired = LockerSettings.Load().PairedPhone;
 
         string target = Str(root, "target");
@@ -446,6 +498,68 @@ public static class PhoneCompanionService
         await Reply(writer, new { status = "success" });
     }
 
+    private static async Task HandleUnpairAsync(JsonElement root, StreamWriter writer)
+    {
+        var settings = LockerSettings.Load();
+        var paired = settings.PairedPhone;
+        if (paired == null)
+        {
+            await Reply(writer, new { status = "unpaired" });
+            return;
+        }
+
+        string nonce = Str(root, "nonce", "", 64);
+        string tsText = Str(root, "ts", "", 20);
+        string mac = Str(root, "mac", "", 128);
+
+        bool ok = PhoneAuth.IsValidNonce(nonce)
+            && long.TryParse(tsText, out long ts)
+            && PhoneAuth.Verify(paired.SharedSecretKey, mac, "unpair", tsText, nonce)
+            && PhoneAuth.CheckFreshAndRemember(nonce, ts);
+
+        if (!ok)
+        {
+            await Reply(writer, new { status = "unauthorized" });
+            return;
+        }
+
+        string unpairedName = paired.DeviceName;
+        settings.PairedPhone = null;
+        settings.PhoneBiometricsEnabled = false;
+        MasterConfig.DeleteBiometricVault();
+        LockerSettings.Save(settings);
+
+        InexIslandBridge.NotifyPhoneUnpaired(unpairedName);
+        OnPhoneUnpaired?.Invoke();
+        await Reply(writer, new { status = "unpaired" });
+    }
+
+    public static async Task NotifyUnpairToPhoneAsync(string phoneIp, string secret)
+    {
+        if (string.IsNullOrWhiteSpace(phoneIp) || string.IsNullOrEmpty(secret)) return;
+        try
+        {
+            using var client = new TcpClient();
+            using var cts = new CancellationTokenSource(2500);
+            await client.ConnectAsync(phoneIp, PhonePort, cts.Token);
+            using var stream = client.GetStream();
+            using var writer = new StreamWriter(stream, Utf8NoBom) { AutoFlush = true };
+
+            string ts = DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString();
+            string nonce = PhoneAuth.NewNonce();
+            var req = new
+            {
+                action = "unpair",
+                ts = ts,
+                nonce = nonce,
+                mac = PhoneAuth.Sign(secret, "unpair", ts, nonce)
+            };
+            await writer.WriteLineAsync(JsonSerializer.Serialize(req));
+            await writer.FlushAsync();
+        }
+        catch { }
+    }
+
     // ---------------------------------------------------------------------------------------
     // client side (PC -> phone)
     // ---------------------------------------------------------------------------------------
@@ -460,6 +574,8 @@ public static class PhoneCompanionService
         string secret = settings.PairedPhone.SharedSecretKey;
         string phoneIp = settings.PairedPhone.LastIpAddress;
         if (string.IsNullOrWhiteSpace(phoneIp) || string.IsNullOrEmpty(secret))
+            return false;
+        if (IPAddress.TryParse(phoneIp, out var targetIp) && !PassesSameWiFiPolicy(targetIp))
             return false;
 
         string actionType = isLock ? "lock" : "unlock";
@@ -582,6 +698,7 @@ public static class PhoneCompanionService
         string secret = settings.PairedPhone.SharedSecretKey;
         string phoneIp = settings.PairedPhone.LastIpAddress;
         if (string.IsNullOrWhiteSpace(phoneIp) || string.IsNullOrEmpty(secret)) { reply.Reason = "no_phone"; return reply; }
+        if (IPAddress.TryParse(phoneIp, out var targetIp) && !PassesSameWiFiPolicy(targetIp)) { reply.Reason = "wrong_wifi"; return reply; }
 
         string mode = settings.PreferredBiometric ?? "Any";
         string nonce = PhoneAuth.BeginRequest(target, actionType);

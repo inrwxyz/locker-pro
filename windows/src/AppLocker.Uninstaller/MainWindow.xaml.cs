@@ -71,7 +71,7 @@ public partial class MainWindow : Window
         {
             if (string.IsNullOrEmpty(pw))
             {
-                ErrorText.Text = "Master Password dao.";
+                ErrorText.Text = "Enter Master Password.";
                 ErrorText.Visibility = Visibility.Visible;
                 return;
             }
@@ -81,8 +81,8 @@ public partial class MainWindow : Window
             if (key == null)
             {
                 ErrorText.Text = lockWait > 0
-                    ? "Onek bhul try. " + LockoutTracker.Format(lockWait) + " por abar try koro."
-                    : "Master password ba recovery key bhul.";
+                    ? "Too many incorrect attempts. Try again in " + LockoutTracker.Format(lockWait) + "."
+                    : "Incorrect Master Password or Recovery Key.";
                 ErrorText.Visibility = Visibility.Visible;
                 PwBox.SelectAll();
                 PwBox.Focus();
@@ -115,12 +115,7 @@ public partial class MainWindow : Window
 
     private static void KillAllLockerProcesses()
     {
-        try
-        {
-            using var stopEvt = new EventWaitHandle(false, EventResetMode.ManualReset, "AppLockerWatchdogStop");
-            stopEvt.Set();
-        }
-        catch { }
+        DirHarden.SignalWatchdogStop();
         string[] procsToKill = { "Locker", "LockerGuard", "AppLocker.UI", "AppLocker.Guard" };
         foreach (var pName in procsToKill)
         {
@@ -129,6 +124,7 @@ public partial class MainWindow : Window
                 foreach (var p in Process.GetProcessesByName(pName))
                 {
                     try { p.Kill(true); } catch { }
+                    finally { p.Dispose(); }
                 }
             }
             catch { }

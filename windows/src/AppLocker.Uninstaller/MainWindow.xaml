@@ -7,7 +7,7 @@
         MouseLeftButtonDown="Window_MouseDown">
 
     <Grid Margin="12">
-        <Border Background="#0C0C14" BorderBrush="#252538" BorderThickness="1" CornerRadius="14" Padding="22">
+        <Border Background="#100F0C" BorderBrush="#2D2C29" BorderThickness="1" CornerRadius="14" Padding="22">
             <Border.Effect>
                 <DropShadowEffect BlurRadius="18" ShadowDepth="4" Opacity="0.5" Color="#000000" Direction="270"/>
             </Border.Effect>
@@ -21,20 +21,20 @@
                             <Border Width="28" Height="28" CornerRadius="7" Background="#260D12" BorderBrush="#501822" BorderThickness="1" Margin="0,0,10,0" VerticalAlignment="Center">
                                 <TextBlock Text="&#xE74D;" FontFamily="Segoe MDL2 Assets" FontSize="13" Foreground="#FF453A" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                             </Border>
-                            <TextBlock Text="Uninstall Locker PRO" Foreground="#F4F4F7" FontSize="14.5" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                            <TextBlock Text="Uninstall Locker PRO" Foreground="#F7F6F3" FontSize="14.5" FontWeight="SemiBold" VerticalAlignment="Center"/>
                         </StackPanel>
                         <Button Content="&#xE711;" FontFamily="Segoe MDL2 Assets" FontSize="10" Width="26" Height="26"
-                                Background="Transparent" Foreground="#7E7E94" BorderThickness="0" Cursor="Hand"
+                                Background="Transparent" Foreground="#878683" BorderThickness="0" Cursor="Hand"
                                 HorizontalAlignment="Right" Click="Cancel_Click"/>
                     </Grid>
 
-                    <TextBlock Text="Uninstall korte ebong locked folder auto-decrypt korte Master Password dao:"
-                               Foreground="#7E7E94" FontSize="11.5" TextWrapping="Wrap" Margin="0,0,0,12"/>
+                    <TextBlock Text="Enter your Master Password to uninstall Locker and automatically decrypt all locked folders:"
+                               Foreground="#878683" FontSize="11.5" TextWrapping="Wrap" Margin="0,0,0,12"/>
 
                     <!-- Password Box -->
                     <PasswordBox x:Name="PwBox" Height="36" FontSize="13" Padding="10,6"
-                                 Background="#12121A" Foreground="#F4F4F7" CaretBrush="White"
-                                 BorderBrush="#28283C" BorderThickness="1" Margin="0,0,0,8"/>
+                                 Background="#161512" Foreground="#F7F6F3" CaretBrush="White"
+                                 BorderBrush="#302F2C" BorderThickness="1" Margin="0,0,0,8"/>
 
                     <TextBlock x:Name="ErrorText" Foreground="#FF453A" FontSize="11.5" Visibility="Collapsed" Margin="0,0,0,8"/>
 
@@ -46,8 +46,8 @@
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
 
-                        <Button Content="Cancel" Height="34" Cursor="Hand" Background="#171722" Foreground="#8E8E9E"
-                                BorderBrush="#222232" BorderThickness="1" FontWeight="SemiBold" Click="Cancel_Click">
+                        <Button Content="Cancel" Height="34" Cursor="Hand" Background="#1C1B18" Foreground="#959491"
+                                BorderBrush="#292825" BorderThickness="1" FontWeight="SemiBold" Click="Cancel_Click">
                             <Button.Template>
                                 <ControlTemplate TargetType="Button">
                                     <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
@@ -78,21 +78,21 @@
                     <Border Width="38" Height="38" CornerRadius="10" Background="#260D12" BorderBrush="#501822" BorderThickness="1" Margin="0,0,0,14" HorizontalAlignment="Center">
                         <TextBlock Text="&#xE74D;" FontFamily="Segoe MDL2 Assets" FontSize="18" Foreground="#FF453A" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                     </Border>
-                    <TextBlock Text="Uninstalling Locker..." Foreground="#F4F4F7" FontSize="15" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,0,0,8"/>
-                    <TextBlock x:Name="ProgressStatusText" Text="Closing applications &amp; wiping files..." Foreground="#7E7E94" FontSize="12" HorizontalAlignment="Center" Margin="0,0,0,16"/>
-                    <ProgressBar Height="4" IsIndeterminate="True" Background="#181826" Foreground="#FF453A" BorderThickness="0" Margin="10,0,10,0"/>
+                    <TextBlock Text="Uninstalling Locker..." Foreground="#F7F6F3" FontSize="15" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,0,0,8"/>
+                    <TextBlock x:Name="ProgressStatusText" Text="Closing applications &amp; wiping files..." Foreground="#878683" FontSize="12" HorizontalAlignment="Center" Margin="0,0,0,16"/>
+                    <ProgressBar Height="4" IsIndeterminate="True" Background="#1E1D1A" Foreground="#FF453A" BorderThickness="0" Margin="10,0,10,0"/>
                 </StackPanel>
 
                 <!-- 3. FINISHED PANEL -->
                 <StackPanel x:Name="PanelFinished" Visibility="Collapsed" VerticalAlignment="Center">
-                    <Border Width="40" Height="40" CornerRadius="10" Background="#0C2518" BorderBrush="#1C4B30" BorderThickness="1" Margin="0,0,0,12" HorizontalAlignment="Center">
+                    <Border Width="40" Height="40" CornerRadius="10" Background="#1A1916" BorderBrush="#1C4B30" BorderThickness="1" Margin="0,0,0,12" HorizontalAlignment="Center">
                         <TextBlock Text="&#xE73E;" FontFamily="Segoe MDL2 Assets" FontSize="18" Foreground="#30D158" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                     </Border>
-                    <TextBlock Text="Locker Uninstalled" Foreground="#F4F4F7" FontSize="15.5" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,6"/>
+                    <TextBlock Text="Locker Uninstalled" Foreground="#F7F6F3" FontSize="15.5" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,6"/>
                     <TextBlock Text="All application files, locks and registry settings have been completely removed from your PC."
-                               Foreground="#7E7E94" FontSize="11.5" TextAlignment="Center" TextWrapping="Wrap" Margin="10,0,10,16"/>
+                               Foreground="#878683" FontSize="11.5" TextAlignment="Center" TextWrapping="Wrap" Margin="10,0,10,16"/>
 
-                    <Button Content="Close" Height="34" Width="140" Cursor="Hand" Background="#162E20" Foreground="#30D158"
+                    <Button Content="Close" Height="34" Width="140" Cursor="Hand" Background="#23221F" Foreground="#30D158"
                             BorderBrush="#1C4B30" BorderThickness="1" FontWeight="Bold" HorizontalAlignment="Center" Click="Close_Click">
                         <Button.Template>
                             <ControlTemplate TargetType="Button">

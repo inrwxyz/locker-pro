@@ -2,6 +2,7 @@ using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Interop;
 using System.Windows.Media.Animation;
+using AppLocker.Core;
 
 namespace AppLocker.Manager.Guard;
 
@@ -20,10 +21,15 @@ public partial class LockChipWindow : Window
     private const uint SWP_NOACTIVATE = 0x0010;
 
     public event Action? LockClicked;
+    public string FolderPath { get; }
+    private const double ChipGap = 8;
+    private int _slotIndex;
     private bool _isClosing;
 
-    public LockChipWindow()
+    public LockChipWindow(string folderPath = "", int slotIndex = 0)
     {
+        FolderPath = folderPath;
+        _slotIndex = Math.Max(0, slotIndex);
         InitializeComponent();
         Loaded += LockChipWindow_Loaded;
     }
@@ -39,13 +45,42 @@ public partial class LockChipWindow : Window
             SetWindowPos(h, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
         }
 
-        // Position at top right corner
+        // Position at top right corner in stacked slot
         var work = SystemParameters.WorkArea;
         Left = work.Right - Width - 20;
-        Top = work.Top + 20;
+        Top = ComputeSlotTop(_slotIndex, work);
 
         // Fade in
         BeginAnimation(OpacityProperty, new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(220)));
+    }
+
+    private double ComputeSlotTop(int slotIndex, Rect work)
+    {
+        double raw = work.Top + 20 + Math.Max(0, slotIndex) * (Height + ChipGap);
+        double maxTop = Math.Max(work.Top + 8, work.Bottom - Height - 8);
+        return Math.Min(raw, maxTop);
+    }
+
+    public void SetSlot(int slotIndex, bool animate = true)
+    {
+        _slotIndex = Math.Max(0, slotIndex);
+        if (!IsLoaded || _isClosing) return;
+        double targetTop = ComputeSlotTop(_slotIndex, SystemParameters.WorkArea);
+        if (Math.Abs(Top - targetTop) < 0.5) return;
+
+        if (animate)
+        {
+            var anim = new DoubleAnimation(Top, targetTop, TimeSpan.FromMilliseconds(160))
+            {
+                EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut }
+            };
+            BeginAnimation(TopProperty, anim);
+        }
+        else
+        {
+            BeginAnimation(TopProperty, null);
+            Top = targetTop;
+        }
     }
 
     public void SetFolder(string name)
@@ -59,6 +94,24 @@ public partial class LockChipWindow : Window
         LockBtn.IsEnabled = false;
         LockBtn.Content = "Locking...";
         ChipLabel.Text = text;
+    }
+
+    public void ShowProgress(FolderProgress p)
+    {
+        int pct = (int)Math.Round(p.Percent);
+        LockBtn.IsEnabled = false;
+        LockBtn.Content = p.TotalFiles > 0 ? $"{pct}%" : "Locking...";
+        ChipLabel.Text = "Locking...";
+        ChipLabel.ToolTip = p.TotalFiles > 0
+            ? $"{p.FilesDone}/{p.TotalFiles} ({FolderProgress.FormatSize(p.BytesDone)}/{FolderProgress.FormatSize(p.TotalBytes)}) • {p.CurrentFile}"
+            : "Locking...";
+    }
+
+    public void ResetReady(string name)
+    {
+        LockBtn.IsEnabled = true;
+        LockBtn.Content = "Lock now";
+        SetFolder(name);
     }
 
     public async void ShowLockedAndClose()

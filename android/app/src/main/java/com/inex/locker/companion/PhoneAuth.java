@@ -2,14 +2,21 @@ package com.inex.locker.companion;
 
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.security.keystore.KeyGenParameterSpec;
+import android.security.keystore.KeyProperties;
+import android.util.Base64;
 
 import java.nio.charset.StandardCharsets;
+import java.security.Key;
+import java.security.KeyStore;
 import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.util.Locale;
 
 import javax.crypto.Cipher;
+import javax.crypto.KeyGenerator;
 import javax.crypto.Mac;
+import javax.crypto.SecretKey;
 import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 
@@ -59,16 +66,75 @@ final class PhoneAuth {
                 macHex.trim().toLowerCase(Locale.ROOT).getBytes(StandardCharsets.US_ASCII));
     }
 
-    /** Shared secret saved at pairing time (kept native; the pong no longer returns it). */
+    private static final String PREF_KEY_ALIAS = "locker_prefs_aes_v1";
+    private static final String ENC_PREFIX = "enc1:";
+
+    private static synchronized SecretKey getOrCreatePrefsKey() throws Exception {
+        KeyStore ks = KeyStore.getInstance("AndroidKeyStore");
+        ks.load(null);
+        Key existing = ks.getKey(PREF_KEY_ALIAS, null);
+        if (existing instanceof SecretKey) return (SecretKey) existing;
+
+        KeyGenerator kg = KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, "AndroidKeyStore");
+        kg.init(new KeyGenParameterSpec.Builder(
+                PREF_KEY_ALIAS,
+                KeyProperties.PURPOSE_ENCRYPT | KeyProperties.PURPOSE_DECRYPT)
+                .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
+                .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
+                .setKeySize(256)
+                .build());
+        return kg.generateKey();
+    }
+
+    static String sealLocalSecret(String plain) {
+        if (plain == null || plain.isEmpty()) return "";
+        try {
+            SecretKey key = getOrCreatePrefsKey();
+            Cipher c = Cipher.getInstance("AES/GCM/NoPadding");
+            c.init(Cipher.ENCRYPT_MODE, key);
+            byte[] iv = c.getIV();
+            byte[] ct = c.doFinal(plain.getBytes(StandardCharsets.UTF_8));
+            byte[] out = new byte[1 + iv.length + ct.length];
+            out[0] = (byte) iv.length;
+            System.arraycopy(iv, 0, out, 1, iv.length);
+            System.arraycopy(ct, 0, out, 1 + iv.length, ct.length);
+            return ENC_PREFIX + Base64.encodeToString(out, Base64.NO_WRAP);
+        } catch (Exception e) {
+            return plain;
+        }
+    }
+
+    static String unsealLocalSecret(String stored) {
+        if (stored == null || stored.isEmpty()) return "";
+        if (!stored.startsWith(ENC_PREFIX)) return stored;
+        try {
+            byte[] all = Base64.decode(stored.substring(ENC_PREFIX.length()), Base64.NO_WRAP);
+            int ivLen = all[0] & 0xFF;
+            if (ivLen < 8 || all.length <= 1 + ivLen) return "";
+            byte[] iv = new byte[ivLen];
+            byte[] ct = new byte[all.length - 1 - ivLen];
+            System.arraycopy(all, 1, iv, 0, ivLen);
+            System.arraycopy(all, 1 + ivLen, ct, 0, ct.length);
+            SecretKey key = getOrCreatePrefsKey();
+            Cipher c = Cipher.getInstance("AES/GCM/NoPadding");
+            c.init(Cipher.DECRYPT_MODE, key, new GCMParameterSpec(128, iv));
+            return new String(c.doFinal(ct), StandardCharsets.UTF_8);
+        } catch (Exception e) {
+            return "";
+        }
+    }
+
+    /** Shared secret saved at pairing time (encrypted via Android Keystore, never exposed to WebView JS). */
     static String loadSecret(Context ctx) {
         if (ctx == null) return "";
         SharedPreferences sp = ctx.getSharedPreferences("locker_companion", Context.MODE_PRIVATE);
-        String s = sp.getString("pc_secret", "");
-        if (s == null || s.isEmpty()) {
+        String raw = sp.getString("pc_secret", "");
+        if (raw == null || raw.isEmpty()) {
             SharedPreferences sp2 = ctx.getSharedPreferences("locker_native_prefs", Context.MODE_PRIVATE);
-            s = sp2.getString("pc_secret", "");
+            raw = sp2.getString("pc_secret", "");
         }
-        return s == null ? "" : s;
+        if (raw == null || raw.isEmpty()) return "";
+        return unsealLocalSecret(raw);
     }
 
     private static byte[] canonical(String purpose, String[] fields) {
@@ -116,12 +182,13 @@ final class PhoneAuth {
     static String getOrGenerateVaultMasterSeed(Context ctx) {
         if (ctx == null) return "fallback_seed";
         SharedPreferences sp = ctx.getSharedPreferences("locker_companion", Context.MODE_PRIVATE);
-        String seed = sp.getString("vault_master_seed", "");
-        if (seed == null || seed.isEmpty()) {
+        String raw = sp.getString("vault_master_seed", "");
+        String seed = (raw != null && !raw.isEmpty()) ? unsealLocalSecret(raw) : "";
+        if (seed.isEmpty()) {
             byte[] b = new byte[32];
             RNG.nextBytes(b);
             seed = hex(b);
-            sp.edit().putString("vault_master_seed", seed).apply();
+            sp.edit().putString("vault_master_seed", sealLocalSecret(seed)).apply();
         }
         return seed;
     }

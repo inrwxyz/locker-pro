@@ -79,8 +79,8 @@ public class AppGuard : IDisposable
             _sweepTimer = new System.Threading.Timer(_ => Sweep(), null, 0, 700);
             return true;
         }
-        catch (UnauthorizedAccessException) { error = "Admin lagbe"; }
-        catch (ManagementException ex) { error = ex.Message.Contains("denied", StringComparison.OrdinalIgnoreCase) ? "Admin lagbe" : ex.Message; }
+        catch (UnauthorizedAccessException) { error = "Administrator privileges required"; }
+        catch (ManagementException ex) { error = ex.Message.Contains("denied", StringComparison.OrdinalIgnoreCase) ? "Administrator privileges required" : ex.Message; }
         catch (Exception ex) { error = ex.Message; }
         return false;
     }
@@ -274,7 +274,7 @@ public class AppGuard : IDisposable
         bool ask = false;
         lock (_lock)
         {
-            if (Known(pid)) return; // already tracked
+            if (Known(pid)) { p.Dispose(); return; } // already tracked
 
             // App age thekei unlocked thakle check koro:
             if (_unlocked.TryGetValue(canon, out var set))
@@ -322,6 +322,10 @@ public class AppGuard : IDisposable
             {
                 list.Add(p);
             }
+            else
+            {
+                p.Dispose();
+            }
 
             // Also suspend sibling processes if multi-process (e.g. Discord unhiding from tray)
             try
@@ -329,6 +333,7 @@ public class AppGuard : IDisposable
                 string procName = Path.GetFileNameWithoutExtension(canon);
                 foreach (var sibling in Process.GetProcessesByName(procName))
                 {
+                    bool kept = false;
                     try
                     {
                         if (sibling.Id != pid && !list.Any(x => x.Id == sibling.Id))
@@ -339,11 +344,16 @@ public class AppGuard : IDisposable
                                 if (Suspend(sibling))
                                 {
                                     list.Add(sibling);
+                                    kept = true;
                                 }
                             }
                         }
                     }
                     catch { }
+                    finally
+                    {
+                        if (!kept) sibling.Dispose();
+                    }
                 }
             }
             catch { }
@@ -509,11 +519,16 @@ public class AppGuard : IDisposable
         try
         {
             p.EnableRaisingEvents = true;
-            p.Exited += (_, _) => OnExit(path, pid);
+            p.Exited += (_, _) =>
+            {
+                try { p.Dispose(); } catch { }
+                OnExit(path, pid);
+            };
         }
         catch
         {
             set.Remove(pid);
+            try { p.Dispose(); } catch { }
         }
     }
 
@@ -573,7 +588,10 @@ public class AppGuard : IDisposable
         {
             foreach (var list in _waiting.Values)
                 foreach (var p in list)
+                {
                     try { p.Kill(true); } catch { }
+                    finally { p.Dispose(); }
+                }
             _waiting.Clear();
         }
     }
