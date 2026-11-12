@@ -18,6 +18,12 @@ public class ExplorerWatcher
     [DllImport("user32.dll")]
     private static extern bool IsWindow(IntPtr hWnd);
 
+    [DllImport("user32.dll", CharSet = CharSet.Auto)]
+    private static extern bool PostMessage(IntPtr hWnd, uint Msg, IntPtr wParam, IntPtr lParam);
+
+    private const uint WM_APPCOMMAND = 0x0319;
+    private const int APPCOMMAND_BROWSER_BACKWARD = 1;
+
     private readonly Func<string, string?> _lockedFolderFor;
     private readonly Action<string> _onOpened;
     private readonly Thread _thread;
@@ -66,8 +72,38 @@ public class ExplorerWatcher
             _canceledFolders.TryRemove(folder, out _);
             bool ok = false;
             dynamic? shell = GetShell();
+            string norm = folder.TrimEnd('\\');
 
-            if (_pendingTabs.Remove(folder, out var list) && list != null && (object?)shell != null)
+            // 1. If an Explorer window is ALREADY inside this folder, simply focus it and track it
+            if (shell != null)
+            {
+                try
+                {
+                    foreach (dynamic w in shell.Windows())
+                    {
+                        try
+                        {
+                            string exe = w.FullName;
+                            if (!exe.EndsWith("explorer.exe", StringComparison.OrdinalIgnoreCase)) continue;
+                            if (TryGetLocalPath(w.LocationURL as string, out string curPath) &&
+                                (curPath.Equals(norm, StringComparison.OrdinalIgnoreCase) ||
+                                 curPath.StartsWith(norm + "\\", StringComparison.OrdinalIgnoreCase)))
+                            {
+                                long curHwnd = w.HWND;
+                                if (curHwnd != 0) SetForegroundWindow(new IntPtr(curHwnd));
+                                _lastActiveSubpathByFolder[norm] = curPath;
+                                _explorerHwndByFolder[norm] = curHwnd;
+                                ok = true;
+                                break;
+                            }
+                        }
+                        catch { }
+                    }
+                }
+                catch { }
+            }
+
+            if (!ok && _pendingTabs.Remove(folder, out var list) && list != null && (object?)shell != null)
             {
                 foreach (var tab in list)
                 {
@@ -79,8 +115,8 @@ public class ExplorerWatcher
                         //    windows don't navigate a wrong/background tab sharing the same outer HWND.
                         if (tab.ComWindow != null && TryNavigateTabAndVerify((dynamic)tab.ComWindow, dest, tab.Hwnd))
                         {
-                            _lastActiveSubpathByFolder[folder.TrimEnd('\\')] = dest;
-                            _explorerHwndByFolder[folder.TrimEnd('\\')] = tab.Hwnd;
+                            _lastActiveSubpathByFolder[norm] = dest;
+                            _explorerHwndByFolder[norm] = tab.Hwnd;
                             ok = true;
                             break;
                         }
@@ -95,8 +131,8 @@ public class ExplorerWatcher
                                 long curHwnd = w.HWND;
                                 if (curHwnd == tab.Hwnd && TryNavigateTabAndVerify(w, dest, curHwnd))
                                 {
-                                    _lastActiveSubpathByFolder[folder.TrimEnd('\\')] = dest;
-                                    _explorerHwndByFolder[folder.TrimEnd('\\')] = curHwnd;
+                                    _lastActiveSubpathByFolder[norm] = dest;
+                                    _explorerHwndByFolder[norm] = curHwnd;
                                     ok = true;
                                     break;
                                 }
@@ -129,8 +165,8 @@ public class ExplorerWatcher
                                 long curHwnd = w.HWND;
                                 if (TryNavigateTabAndVerify(w, folder, curHwnd))
                                 {
-                                    _lastActiveSubpathByFolder[folder.TrimEnd('\\')] = folder;
-                                    _explorerHwndByFolder[folder.TrimEnd('\\')] = curHwnd;
+                                    _lastActiveSubpathByFolder[norm] = folder;
+                                    _explorerHwndByFolder[norm] = curHwnd;
                                     ok = true;
                                     break;
                                 }
@@ -324,6 +360,27 @@ public class ExplorerWatcher
     {
         try
         {
+            long hwndVal = win.HWND;
+            if (hwndVal != 0)
+            {
+                IntPtr hWnd = new IntPtr(hwndVal);
+                PostMessage(hWnd, WM_APPCOMMAND, hWnd, (IntPtr)(APPCOMMAND_BROWSER_BACKWARD << 16));
+                for (int i = 0; i < 5; i++)
+                {
+                    Thread.Sleep(35);
+                    if (TryGetLocalPath(win.LocationURL as string, out string nowPath) &&
+                        !nowPath.Equals(parent, StringComparison.OrdinalIgnoreCase) &&
+                        !nowPath.StartsWith(parent + "\\", StringComparison.OrdinalIgnoreCase))
+                    {
+                        return;
+                    }
+                }
+            }
+        }
+        catch { }
+
+        try
+        {
             win.GoBack();
             return;
         }
@@ -399,9 +456,10 @@ public class ExplorerWatcher
                 string parent = SafeParent(locked);
 
                 // If user canceled prompt for this folder, ensure window navigates away but DO NOT re-prompt
+                // within 1.5 seconds while it is actively leaving the folder
                 if (_canceledFolders.TryGetValue(locked, out var canceledAt))
                 {
-                    if ((DateTime.UtcNow - canceledAt).TotalSeconds < 30)
+                    if ((DateTime.UtcNow - canceledAt).TotalMilliseconds < 1500)
                     {
                         NavigateWindowAway((dynamic)win, parent);
                         continue;
@@ -438,14 +496,14 @@ public class ExplorerWatcher
             _onOpened(locked);
         }
 
-        // Clean up canceled folders only after the user has completely navigated away from them
-        // and at least 30 seconds have passed since cancel
+        // Clean up canceled folders as soon as the user has completely navigated away from them
+        // and at least 1.0 second has passed since cancel
         var now = DateTime.UtcNow;
         foreach (var kvp in _canceledFolders.ToArray())
         {
             string f = kvp.Key;
             DateTime canceledAt = kvp.Value;
-            if ((now - canceledAt).TotalSeconds < 30) continue;
+            if ((now - canceledAt).TotalMilliseconds < 1000) continue;
 
             bool stillInside = activePaths.Any(p =>
                 p.Equals(f, StringComparison.OrdinalIgnoreCase) ||

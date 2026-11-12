@@ -328,8 +328,8 @@ public class GuardHost
 
             await Task.Delay(150);
 
-            // Manual open mode: do not force Explorer tab navigation. User opens the decrypted folder manually in Explorer.
-            _explorer?.Forget(folder);
+            // Automatically open / navigate the folder in Explorer
+            _explorer?.Restore(folder, () => OpenInExplorer(folder));
             restored = true;
 
             // Set grace period timestamp and reset missing count
@@ -569,7 +569,7 @@ public class GuardHost
                     }
 
                     if (_folderUnlockTimes.TryGetValue(folder, out var openedAt) &&
-                        (now - openedAt) < TimeSpan.FromSeconds(8))
+                        (now - openedAt) < TimeSpan.FromSeconds(15))
                     {
                         continue;
                     }
