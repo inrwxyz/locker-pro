@@ -1,3 +1,14 @@
 .DS_Store
 Thumbs.db
 *.log
+
+# Secrets, keys & environment (never commit)
+.env
+.env.*
+*.key
+*.pem
+*.pfx
+*.snk
+*.keystore
+*.jks
+*.sig
