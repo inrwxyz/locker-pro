@@ -442,7 +442,7 @@ public partial class MainWindow : Window
                 {
                     ukey.SetValue("DisplayName", "Locker PRO");
                     ukey.SetValue("DisplayIcon", iconPath);
-                    ukey.SetValue("DisplayVersion", "2.0");
+                    ukey.SetValue("DisplayVersion", "2.1.0");
                     ukey.SetValue("Publisher", "inrwxyz");
                     ukey.SetValue("InstallLocation", _targetDir);
                     ukey.SetValue("UninstallString", $"\"{uninstallExe}\"");

@@ -10,17 +10,17 @@
 
     <Window.Resources>
         <!-- Deep Pitch-Dark Obsidian Palette (Matches Reference Theme) -->
-        <SolidColorBrush x:Key="BgDark" Color="#050401"/>
-        <SolidColorBrush x:Key="SidebarBg" Color="#080704"/>
-        <SolidColorBrush x:Key="ContentBg" Color="#040300"/>
-        <SolidColorBrush x:Key="CardBg" Color="#0D0C09"/>
-        <SolidColorBrush x:Key="Line" Color="#1B1A17"/>
-        <SolidColorBrush x:Key="LineMuted" Color="#141310"/>
+        <SolidColorBrush x:Key="BgDark" Color="#030303"/>
+        <SolidColorBrush x:Key="SidebarBg" Color="#060606"/>
+        <SolidColorBrush x:Key="ContentBg" Color="#020202"/>
+        <SolidColorBrush x:Key="CardBg" Color="#0B0B0B"/>
+        <SolidColorBrush x:Key="Line" Color="#191919"/>
+        <SolidColorBrush x:Key="LineMuted" Color="#121212"/>
         <SolidColorBrush x:Key="TextMain" Color="#FFFFFF"/>
-        <SolidColorBrush x:Key="TextDim" Color="#959491"/>
-        <SolidColorBrush x:Key="TextMuted" Color="#5D5C59"/>
+        <SolidColorBrush x:Key="TextDim" Color="#939393"/>
+        <SolidColorBrush x:Key="TextMuted" Color="#5B5B5B"/>
         <SolidColorBrush x:Key="DangerRed" Color="#FF453A"/>
-        <SolidColorBrush x:Key="DangerBg" Color="#18080C"/>
+        <SolidColorBrush x:Key="DangerBg" Color="#0F0F0F"/>
 
         <!-- Global Sleek Dark ScrollBar Style -->
         <Style x:Key="ScrollBarThumb" TargetType="{x:Type Thumb}">
@@ -29,13 +29,13 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="{x:Type Thumb}">
-                        <Border x:Name="ThumbBorder" Background="#2E2D2A" CornerRadius="3.5"/>
+                        <Border x:Name="ThumbBorder" Background="#2C2C2C" CornerRadius="3.5"/>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="true">
-                                <Setter TargetName="ThumbBorder" Property="Background" Value="#484744"/>
+                                <Setter TargetName="ThumbBorder" Property="Background" Value="#464646"/>
                             </Trigger>
                             <Trigger Property="IsDragging" Value="true">
-                                <Setter TargetName="ThumbBorder" Property="Background" Value="#605F5C"/>
+                                <Setter TargetName="ThumbBorder" Property="Background" Value="#5E5E5E"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -95,36 +95,38 @@
             </Style.Triggers>
         </Style>
 
-        <!-- Sidebar Tab Button Style (Inex Island Style) -->
+        <!-- Sidebar rail button (Nexus style: icon on top, small label) -->
         <Style x:Key="SidebarNavBtn" TargetType="RadioButton">
             <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Height" Value="40"/>
+            <Setter Property="Height" Value="58"/>
             <Setter Property="Margin" Value="0,0,0,4"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="RadioButton">
-                        <Border x:Name="Bd" CornerRadius="8" Background="Transparent" Padding="12,0">
-                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <Border x:Name="Bd" CornerRadius="10" Background="Transparent" BorderBrush="Transparent" BorderThickness="1">
+                            <Grid VerticalAlignment="Center">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="22"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
                                 <TextBlock x:Name="Ico" Text="{Binding Tag, RelativeSource={RelativeSource TemplatedParent}}"
-                                           FontFamily="Segoe MDL2 Assets" FontSize="13" Foreground="{StaticResource TextDim}"
-                                           VerticalAlignment="Center" Margin="0,0,12,0"/>
-                                <TextBlock x:Name="Txt" Text="{TemplateBinding Content}"
-                                           FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource TextDim}"
-                                           VerticalAlignment="Center"/>
-                            </StackPanel>
+                                           FontFamily="Segoe MDL2 Assets" FontSize="17" Foreground="{StaticResource TextDim}"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                <TextBlock x:Name="Txt" Grid.Row="1" Text="{TemplateBinding Content}" FontSize="10"
+                                           Foreground="{StaticResource TextDim}" HorizontalAlignment="Center" Margin="0,4,0,0"/>
+                            </Grid>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Bd" Property="Background" Value="#161512"/>
+                                <Setter TargetName="Bd" Property="Background" Value="#14FFFFFF"/>
                                 <Setter TargetName="Txt" Property="Foreground" Value="{StaticResource TextMain}"/>
                                 <Setter TargetName="Ico" Property="Foreground" Value="{StaticResource TextMain}"/>
                             </Trigger>
                             <Trigger Property="IsChecked" Value="True">
-                                <Setter TargetName="Bd" Property="Background" Value="#17130A"/>
-                                <Setter TargetName="Bd" Property="BorderBrush" Value="#4A3C16"/>
-                                <Setter TargetName="Bd" Property="BorderThickness" Value="1"/>
-                                <Setter TargetName="Txt" Property="Foreground" Value="#E6C77A"/>
-                                <Setter TargetName="Ico" Property="Foreground" Value="#D4AF37"/>
+                                <Setter TargetName="Bd" Property="Background" Value="#26FFFFFF"/>
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="#33FFFFFF"/>
+                                <Setter TargetName="Txt" Property="Foreground" Value="#FFFFFF"/>
+                                <Setter TargetName="Ico" Property="Foreground" Value="#FFFFFF"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -140,7 +142,7 @@
             <Setter Property="Height" Value="32"/>
             <Setter Property="Padding" Value="16,0"/>
             <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Background" Value="#1C1B18"/>
+            <Setter Property="Background" Value="#1A1A1A"/>
             <Setter Property="BorderBrush" Value="{StaticResource Line}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Template">
@@ -154,11 +156,11 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Bd" Property="Background" Value="#2A2926"/>
-                                <Setter TargetName="Bd" Property="BorderBrush" Value="#393835"/>
+                                <Setter TargetName="Bd" Property="Background" Value="#282828"/>
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="#373737"/>
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="Bd" Property="Background" Value="#141310"/>
+                                <Setter TargetName="Bd" Property="Background" Value="#121212"/>
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter TargetName="Bd" Property="Opacity" Value="0.4"/>
@@ -171,9 +173,9 @@
 
         <!-- Inex Island Crisp Primary Button (Pure White / Black Text) -->
         <Style x:Key="AccentBtn" TargetType="Button" BasedOn="{StaticResource Btn}">
-            <Setter Property="Background" Value="#D4AF37"/>
+            <Setter Property="Background" Value="#FFFFFF"/>
             <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Foreground" Value="#0C0B08"/>
+            <Setter Property="Foreground" Value="#0A0A0A"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="Padding" Value="18,0"/>
             <Setter Property="Template">
@@ -184,10 +186,10 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Bd" Property="Background" Value="#E6C77A"/>
+                                <Setter TargetName="Bd" Property="Background" Value="#E6E6E6"/>
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="Bd" Property="Background" Value="#B8942B"/>
+                                <Setter TargetName="Bd" Property="Background" Value="#CFCFCF"/>
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter TargetName="Bd" Property="Opacity" Value="0.4"/>
@@ -256,9 +258,9 @@
                     <ControlTemplate TargetType="CheckBox">
                         <Grid Width="44" Height="24">
                             <!-- Track -->
-                            <Border x:Name="Track" CornerRadius="12" Background="#262522" BorderBrush="#343330" BorderThickness="1"/>
+                            <Border x:Name="Track" CornerRadius="12" Background="#242424" BorderBrush="#323232" BorderThickness="1"/>
                             <!-- Thumb -->
-                            <Ellipse x:Name="Thumb" Width="18" Height="18" Fill="#82817E" HorizontalAlignment="Left" Margin="3,0,0,0">
+                            <Ellipse x:Name="Thumb" Width="18" Height="18" Fill="#808080" HorizontalAlignment="Left" Margin="3,0,0,0">
                                 <Ellipse.RenderTransform>
                                     <TranslateTransform x:Name="ThumbTrans" X="0"/>
                                 </Ellipse.RenderTransform>
@@ -266,9 +268,9 @@
                         </Grid>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsChecked" Value="True">
-                                <Setter TargetName="Track" Property="Background" Value="#D4AF37"/>
-                                <Setter TargetName="Track" Property="BorderBrush" Value="#D4AF37"/>
-                                <Setter TargetName="Thumb" Property="Fill" Value="#0C0B08"/>
+                                <Setter TargetName="Track" Property="Background" Value="#FFFFFF"/>
+                                <Setter TargetName="Track" Property="BorderBrush" Value="#FFFFFF"/>
+                                <Setter TargetName="Thumb" Property="Fill" Value="#0A0A0A"/>
                                 <Setter TargetName="Thumb" Property="Margin" Value="23,0,0,0"/>
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
@@ -282,7 +284,7 @@
 
         <!-- Inex Dark Text Box / Password Box Style -->
         <Style TargetType="TextBox">
-            <Setter Property="Background" Value="#141310"/>
+            <Setter Property="Background" Value="#121212"/>
             <Setter Property="Foreground" Value="{StaticResource TextMain}"/>
             <Setter Property="BorderBrush" Value="{StaticResource Line}"/>
             <Setter Property="BorderThickness" Value="1"/>
@@ -301,7 +303,7 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsFocused" Value="True">
-                                <Setter TargetName="Bd" Property="BorderBrush" Value="#8A6D1F"/>
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="#8A8A8A"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -310,7 +312,7 @@
         </Style>
 
         <Style TargetType="PasswordBox">
-            <Setter Property="Background" Value="#141310"/>
+            <Setter Property="Background" Value="#121212"/>
             <Setter Property="Foreground" Value="{StaticResource TextMain}"/>
             <Setter Property="BorderBrush" Value="{StaticResource Line}"/>
             <Setter Property="BorderThickness" Value="1"/>
@@ -329,7 +331,7 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsFocused" Value="True">
-                                <Setter TargetName="Bd" Property="BorderBrush" Value="#8A6D1F"/>
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="#8A8A8A"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -342,77 +344,64 @@
     <Grid Margin="12">
         <!-- Root Card Container with Perfect Rounded Clipping -->
         <Border x:Name="RootBorder" Background="{StaticResource BgDark}" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="14">
-            <Border.Effect>
-                <DropShadowEffect BlurRadius="18" ShadowDepth="4" Opacity="0.5" Color="#000000" Direction="270"/>
-            </Border.Effect>
-
             <!-- Inner Border with CornerRadius & ClipToBounds so children never poke through corners -->
             <Border CornerRadius="13" ClipToBounds="True">
                 <Grid>
                     <!-- Main Content Layout -->
                     <Grid>
                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="210"/>
+                            <ColumnDefinition Width="104"/>
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
 
-                        <!-- LEFT SIDEBAR -->
-                        <Border Grid.Column="0" Background="{StaticResource SidebarBg}" BorderBrush="{StaticResource Line}" BorderThickness="0,0,1,0">
-                            <Grid>
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="*"/>
-                                    <RowDefinition Height="Auto"/>
-                                </Grid.RowDefinitions>
+                        <!-- LEFT SIDEBAR: logo outside, rail below -->
+                        <Grid Grid.Column="0" Margin="10,14,10,10">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
 
-                                <!-- Sidebar Logo Header -->
-                                <StackPanel Orientation="Horizontal" Margin="20,18,0,24" VerticalAlignment="Center">
-                                    <Border Width="30" Height="30" CornerRadius="8" Background="#000000" BorderBrush="#4A3C16" BorderThickness="1" ClipToBounds="True" VerticalAlignment="Center" Margin="0,0,10,0">
-                                        <Image Source="/logo.png" Stretch="UniformToFill" RenderOptions.BitmapScalingMode="HighQuality">
-                                            <Image.RenderTransform><ScaleTransform ScaleX="1.9" ScaleY="1.9" CenterX="15" CenterY="15"/></Image.RenderTransform>
-                                        </Image>
-                                    </Border>
-                                    <TextBlock Text="Locker" Foreground="{StaticResource TextMain}" FontWeight="SemiBold" FontSize="16" VerticalAlignment="Center"/>
-                                    <Border Background="#1F190B" BorderBrush="#4A3C16" BorderThickness="1" CornerRadius="4" Padding="5,1" Margin="8,0,0,0" VerticalAlignment="Center">
-                                        <TextBlock Text="PRO" Foreground="#D4AF37" FontSize="9.5" FontWeight="Bold"/>
-                                    </Border>
-                                </StackPanel>
+                            <Image Source="/logo.png" Width="40" Height="40" Margin="0,0,0,14" HorizontalAlignment="Center"
+                                   RenderOptions.BitmapScalingMode="HighQuality"/>
 
-                                <!-- Navigation Tabs -->
-                                <StackPanel Grid.Row="1" Margin="12,0,12,0">
-                                    <RadioButton x:Name="NavLocked" Style="{StaticResource SidebarNavBtn}" Content="Locked Items"
-                                                 Tag="&#xE72E;" IsChecked="True" Checked="Nav_Checked"/>
-                                    <RadioButton x:Name="NavSecurity" Style="{StaticResource SidebarNavBtn}" Content="Security &amp; Pass"
+                            <Border Grid.Row="1" CornerRadius="14" Background="{StaticResource SidebarBg}" BorderBrush="{StaticResource Line}" BorderThickness="1">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="*"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+                                    <StackPanel Grid.Row="0" Margin="6,8,6,0">
+                                        <RadioButton x:Name="NavLocked" Style="{StaticResource SidebarNavBtn}" Content="Locked"
+                                                 Tag="&#xE72E;" Checked="Nav_Checked" IsChecked="True"/>
+                                        <RadioButton x:Name="NavSecurity" Style="{StaticResource SidebarNavBtn}" Content="Security"
                                                  Tag="&#xE8D7;" Checked="Nav_Checked"/>
-                                    <RadioButton x:Name="NavPhone" Style="{StaticResource SidebarNavBtn}" Content="Phone Link"
+                                        <RadioButton x:Name="NavPhone" Style="{StaticResource SidebarNavBtn}" Content="Phone"
                                                  Tag="&#xE8EA;" Checked="Nav_Checked"/>
-                                    <RadioButton x:Name="NavVault" Style="{StaticResource SidebarNavBtn}" Content="Vault Locker"
+                                        <RadioButton x:Name="NavVault" Style="{StaticResource SidebarNavBtn}" Content="Vault"
                                                  Tag="&#xEDA2;" Checked="Nav_Checked"/>
-                                    <RadioButton x:Name="NavAbout" Style="{StaticResource SidebarNavBtn}" Content="About &amp; System"
+                                        <RadioButton x:Name="NavAbout" Style="{StaticResource SidebarNavBtn}" Content="About"
                                                  Tag="&#xE946;" Checked="Nav_Checked"/>
-                                </StackPanel>
-
-                                <!-- Guard Status Footer -->
-                                <Border Grid.Row="2" Margin="14,0,14,16" Padding="12,10" Background="#141310" CornerRadius="8" BorderBrush="{StaticResource LineMuted}" BorderThickness="1">
-                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                        <Ellipse x:Name="GuardStatusDot" Width="8" Height="8" Fill="#10B981" Margin="0,0,8,0" VerticalAlignment="Center"/>
-                                        <TextBlock x:Name="GuardStatusText" Text="Guard Active" Foreground="{StaticResource TextDim}" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                    <Border Grid.Row="1" Margin="6,0,6,8" Padding="4,8" Background="#121212" CornerRadius="8" BorderBrush="{StaticResource LineMuted}" BorderThickness="1">
+                                    <StackPanel VerticalAlignment="Center">
+                                        <Ellipse x:Name="GuardStatusDot" Width="8" Height="8" Fill="#FFFFFF" Margin="0,0,0,5" HorizontalAlignment="Center"/>
+                                        <TextBlock FontSize="9.5" TextWrapping="Wrap" TextAlignment="Center" x:Name="GuardStatusText" Text="Guard Active" Foreground="{StaticResource TextDim}" FontWeight="SemiBold"/>
                                     </StackPanel>
                                 </Border>
-                            </Grid>
-                        </Border>
+                                </Grid>
+                            </Border>
+                        </Grid>
 
                         <!-- RIGHT CONTENT AREA -->
                         <Grid Grid.Column="1" Background="{StaticResource ContentBg}">
                             <Grid.RowDefinitions>
-                                <RowDefinition Height="46"/>
+                                <RowDefinition Height="58"/>
                                 <RowDefinition Height="*"/>
                             </Grid.RowDefinitions>
 
                             <!-- Top Window Header (Drag area + Window controls) -->
                             <Grid Grid.Row="0" Background="Transparent" MouseLeftButtonDown="TitleBar_MouseDown">
-                                <TextBlock x:Name="HeaderTitle" Text="LOCKED ITEMS" Foreground="{StaticResource TextMuted}"
-                                           FontSize="11" FontWeight="Bold" Margin="24,16,0,0" VerticalAlignment="Center"/>
+                                <TextBlock x:Name="HeaderTitle" Text="Locked Items" Foreground="{StaticResource TextMain}" FontFamily="Georgia" FontSize="22" FontWeight="SemiBold" Margin="24,0,0,0" VerticalAlignment="Center"/>
 
                                 <!-- Minimize / Close Buttons -->
                                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,12,0">
@@ -443,7 +432,7 @@
                                     </Grid>
 
                                     <!-- Items List Card -->
-                                    <Border Grid.Row="1" Background="{StaticResource CardBg}" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="12">
+                                    <Border Grid.Row="1" Background="Transparent" BorderThickness="0">
                                         <Grid>
                                             <ListBox x:Name="ItemList" Background="Transparent" BorderThickness="0"
                                                      ScrollViewer.VerticalScrollBarVisibility="Auto"
@@ -453,12 +442,12 @@
                                                         <Setter Property="Template">
                                                             <Setter.Value>
                                                                 <ControlTemplate TargetType="ListBoxItem">
-                                                                    <Border x:Name="Bd" Background="Transparent" Padding="14,9" BorderBrush="{StaticResource LineMuted}" BorderThickness="0,0,0,1">
+                                                                    <Border x:Name="Bd" Background="{StaticResource CardBg}" Padding="12,8" Margin="0,0,0,6" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="10">
                                                                         <ContentPresenter/>
                                                                     </Border>
                                                                     <ControlTemplate.Triggers>
                                                                         <Trigger Property="IsMouseOver" Value="True">
-                                                                            <Setter TargetName="Bd" Property="Background" Value="#1D1C19"/>
+                                                                            <Setter TargetName="Bd" Property="Background" Value="#1B1B1B"/>
                                                                         </Trigger>
                                                                     </ControlTemplate.Triggers>
                                                                 </ControlTemplate>
@@ -477,7 +466,7 @@
                                                             </Grid.ColumnDefinitions>
 
                                                             <!-- App / Folder Icon Box -->
-                                                            <Border Width="34" Height="34" CornerRadius="8" Background="#1C1B18" BorderBrush="#292825" BorderThickness="1" Margin="0,0,12,0" VerticalAlignment="Center">
+                                                            <Border Width="34" Height="34" CornerRadius="8" Background="#1A1A1A" BorderBrush="#272727" BorderThickness="1" Margin="0,0,12,0" VerticalAlignment="Center">
                                                                 <Grid HorizontalAlignment="Center" VerticalAlignment="Center">
                                                                     <Image Source="{Binding IconSource}" Width="22" Height="22"
                                                                            RenderOptions.BitmapScalingMode="HighQuality"
@@ -495,8 +484,8 @@
                                                             </StackPanel>
 
                                                             <!-- Type Badge -->
-                                                            <Border Grid.Column="2" Background="{Binding BadgeBackground}" CornerRadius="4" Padding="6,2" Margin="12,0" VerticalAlignment="Center">
-                                                                <TextBlock Text="{Binding TypeLabel}" Foreground="{Binding BadgeForeground}" FontSize="10" FontWeight="SemiBold"/>
+                                                            <Border Grid.Column="2" Background="#1A1A1A" CornerRadius="4" Padding="6,2" Margin="12,0" VerticalAlignment="Center">
+                                                                <TextBlock Text="{Binding TypeLabel}" Foreground="#A0A0A0" FontSize="10" FontWeight="SemiBold"/>
                                                             </Border>
 
                                                             <!-- Remove Button -->
@@ -555,7 +544,7 @@
                                                     <PasswordBox x:Name="ConfirmPwBox" Grid.Column="1"/>
                                                 </Grid>
 
-                                                <TextBlock x:Name="PassStatusMsg" Foreground="#10B981" FontSize="11.5" Visibility="Collapsed" Margin="0,0,0,10"/>
+                                                <TextBlock x:Name="PassStatusMsg" Foreground="#FFFFFF" FontSize="11.5" Visibility="Collapsed" Margin="0,0,0,10"/>
 
                                                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                                                     <Button Content="Update Password" Style="{StaticResource AccentBtn}" Click="UpdatePassword_Click"/>
@@ -576,7 +565,7 @@
                                                         <ColumnDefinition Width="Auto"/>
                                                     </Grid.ColumnDefinitions>
                                                     <TextBox x:Name="RecoveryKeyDisplay" IsReadOnly="True" Text="••••-••••-••••-••••-••••"
-                                                             Background="#12110E" Foreground="#E6C77A" FontWeight="Bold" Height="38"/>
+                                                             Background="#101010" Foreground="#E6E6E6" FontWeight="Bold" Height="38"/>
                                                     <Button Grid.Column="1" Content="New Key / Copy" Style="{StaticResource Btn}" Margin="8,0,0,0" Click="RevealRecoveryKey_Click"/>
                                                 </Grid>
                                             </StackPanel>
@@ -600,7 +589,7 @@
                                                 </Grid.ColumnDefinitions>
 
                                                 <!-- Phone Icon Box -->
-                                                <Border Width="40" Height="40" CornerRadius="10" Background="#1E1D1A" BorderBrush="#2E2D2A" BorderThickness="1" Margin="0,0,14,0" VerticalAlignment="Center">
+                                                <Border Width="40" Height="40" CornerRadius="10" Background="#1C1C1C" BorderBrush="#2C2C2C" BorderThickness="1" Margin="0,0,14,0" VerticalAlignment="Center">
                                                     <TextBlock Text="&#xE8EA;" FontFamily="Segoe MDL2 Assets" FontSize="18" Foreground="#FFFFFF" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                                 </Border>
 
@@ -685,15 +674,15 @@
                                                 </Grid.ColumnDefinitions>
 
                                                 <!-- Inex Island Icon Box -->
-                                                <Border Width="36" Height="36" CornerRadius="8" Background="#1C1B18" BorderBrush="#292825" BorderThickness="1" Margin="0,0,14,0" VerticalAlignment="Center">
+                                                <Border Width="36" Height="36" CornerRadius="8" Background="#1A1A1A" BorderBrush="#272727" BorderThickness="1" Margin="0,0,14,0" VerticalAlignment="Center">
                                                     <TextBlock Text="&#xE707;" FontFamily="Segoe MDL2 Assets" FontSize="16" Foreground="#FFFFFF" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                                 </Border>
 
                                                 <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="0,0,12,0">
                                                     <StackPanel Orientation="Horizontal">
                                                         <TextBlock Text="Inex Island Dynamic Lock / Animations" Foreground="{StaticResource TextMain}" FontSize="13" FontWeight="SemiBold"/>
-                                                        <Border x:Name="IslandBadge" Background="#201F1C" CornerRadius="4" Padding="5,1" Margin="8,0,0,0" VerticalAlignment="Center">
-                                                            <TextBlock x:Name="IslandBadgeText" Text="Active" Foreground="#10B981" FontSize="10" FontWeight="SemiBold"/>
+                                                        <Border x:Name="IslandBadge" Background="#1E1E1E" CornerRadius="4" Padding="5,1" Margin="8,0,0,0" VerticalAlignment="Center">
+                                                            <TextBlock x:Name="IslandBadgeText" Text="Active" Foreground="#FFFFFF" FontSize="10" FontWeight="SemiBold"/>
                                                         </Border>
                                                     </StackPanel>
                                                     <TextBlock Text="Unlock er shomoy Inex Island e dynamic face/fingerprint animation dekhabe." Foreground="{StaticResource TextDim}" FontSize="11" Margin="0,2,0,0"/>
@@ -714,7 +703,7 @@
                                                             <ColumnDefinition Width="Auto"/>
                                                         </Grid.ColumnDefinitions>
                                                         <TextBlock Text="Version" Foreground="{StaticResource TextDim}" FontSize="12"/>
-                                                        <TextBlock Grid.Column="1" Text="Locker PRO v2.0 (Build 2026.10)" Foreground="{StaticResource TextMain}" FontSize="12" FontWeight="SemiBold"/>
+                                                        <TextBlock Grid.Column="1" Text="Locker PRO v2.1.0" Foreground="{StaticResource TextMain}" FontSize="12" FontWeight="SemiBold"/>
                                                     </Grid>
                                                 </Border>
 
@@ -768,10 +757,10 @@
 
                                     <!-- Vault Action Card (Manual Selection) -->
                                     <StackPanel Grid.Row="0" Margin="0,0,0,16">
-                                        <Border Background="#12110E" BorderBrush="#262522" BorderThickness="1" CornerRadius="12" Padding="24,20" Margin="0,0,0,14">
+                                        <Border Background="#101010" BorderBrush="#242424" BorderThickness="1" CornerRadius="12" Padding="24,20" Margin="0,0,0,14">
                                             <StackPanel HorizontalAlignment="Center">
-                                                <Border Width="48" Height="48" CornerRadius="12" Background="#1A1509" BorderBrush="#8A6D1F" BorderThickness="1" HorizontalAlignment="Center" Margin="0,0,0,10">
-                                                    <TextBlock Text="&#xEDA2;" FontFamily="Segoe MDL2 Assets" FontSize="22" Foreground="#E6C77A" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                <Border Width="48" Height="48" CornerRadius="12" Background="#1A1509" BorderBrush="#8A8A8A" BorderThickness="1" HorizontalAlignment="Center" Margin="0,0,0,10">
+                                                    <TextBlock Text="&#xEDA2;" FontFamily="Segoe MDL2 Assets" FontSize="22" Foreground="#E6E6E6" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                                 </Border>
                                                 <TextBlock Text="Portable Password Vault" Foreground="{StaticResource TextMain}" FontSize="15" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,4"/>
                                                 <TextBlock Text="Choose any folder to encrypt in-place with its own password. Take it anywhere on a pendrive and open it on any PC." Foreground="{StaticResource TextDim}" FontSize="12" HorizontalAlignment="Center" Margin="0,0,0,14" TextAlignment="Center"/>
@@ -798,7 +787,7 @@
                                                             </Border>
                                                             <ControlTemplate.Triggers>
                                                                 <Trigger Property="IsMouseOver" Value="True">
-                                                                    <Setter TargetName="Bd" Property="BorderBrush" Value="#D4AF37"/>
+                                                                    <Setter TargetName="Bd" Property="BorderBrush" Value="#FFFFFF"/>
                                                                 </Trigger>
                                                             </ControlTemplate.Triggers>
                                                         </ControlTemplate>
@@ -815,8 +804,8 @@
                                                         <ColumnDefinition Width="Auto"/>
                                                     </Grid.ColumnDefinitions>
                                                     
-                                                    <Border Width="36" Height="36" CornerRadius="8" Background="#1C1B18" BorderBrush="#2E2D2A" BorderThickness="1" Margin="0,0,12,0" VerticalAlignment="Center">
-                                                        <TextBlock Text="&#xEDA2;" FontFamily="Segoe MDL2 Assets" FontSize="18" Foreground="#E6C77A" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                    <Border Width="36" Height="36" CornerRadius="8" Background="#1A1A1A" BorderBrush="#2C2C2C" BorderThickness="1" Margin="0,0,12,0" VerticalAlignment="Center">
+                                                        <TextBlock Text="&#xEDA2;" FontFamily="Segoe MDL2 Assets" FontSize="18" Foreground="#E6E6E6" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                                     </Border>
                                                     
                                                     <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="0,0,10,0">
@@ -846,8 +835,8 @@
                     <!-- ================= OVERLAYS ================= -->
 
                     <!-- 1. SELECT APP PICKER OVERLAY -->
-                    <Border x:Name="PickerOverlay" Visibility="Collapsed" Background="#E6080704">
-                        <Border CornerRadius="12" Background="#100F0C" BorderBrush="{StaticResource Line}" BorderThickness="1"
+                    <Border x:Name="PickerOverlay" Visibility="Collapsed" Background="#E6060606">
+                        <Border CornerRadius="12" Background="#0E0E0E" BorderBrush="{StaticResource Line}" BorderThickness="1"
                                 Width="400" Height="500" VerticalAlignment="Center" HorizontalAlignment="Center" Padding="18">
                             <Grid>
                                 <Grid.RowDefinitions>
@@ -881,10 +870,10 @@
                                                         </Border>
                                                         <ControlTemplate.Triggers>
                                                             <Trigger Property="IsMouseOver" Value="True">
-                                                                <Setter TargetName="Bd" Property="Background" Value="#1E1D1A"/>
+                                                                <Setter TargetName="Bd" Property="Background" Value="#1C1C1C"/>
                                                             </Trigger>
                                                             <Trigger Property="IsSelected" Value="True">
-                                                                <Setter TargetName="Bd" Property="Background" Value="#2D2C29"/>
+                                                                <Setter TargetName="Bd" Property="Background" Value="#2B2B2B"/>
                                                             </Trigger>
                                                         </ControlTemplate.Triggers>
                                                     </ControlTemplate>
@@ -899,7 +888,7 @@
                                                     <ColumnDefinition Width="Auto"/>
                                                     <ColumnDefinition Width="*"/>
                                                 </Grid.ColumnDefinitions>
-                                                <Border Width="28" Height="28" CornerRadius="6" Background="#1C1B18" BorderBrush="#292825" BorderThickness="1" Margin="0,0,10,0" VerticalAlignment="Center">
+                                                <Border Width="28" Height="28" CornerRadius="6" Background="#1A1A1A" BorderBrush="#272727" BorderThickness="1" Margin="0,0,10,0" VerticalAlignment="Center">
                                                     <Image Source="{Binding IconSource}" Width="20" Height="20"
                                                            RenderOptions.BitmapScalingMode="HighQuality" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                                 </Border>
@@ -928,8 +917,8 @@
                     </Border>
 
                     <!-- 2. FIRST-TIME SETUP OVERLAY -->
-                    <Border x:Name="SetupOverlay" Visibility="Collapsed" Background="#E6080704">
-                        <Border CornerRadius="12" Background="#100F0C" BorderBrush="{StaticResource Line}" BorderThickness="1"
+                    <Border x:Name="SetupOverlay" Visibility="Collapsed" Background="#E6060606">
+                        <Border CornerRadius="12" Background="#0E0E0E" BorderBrush="{StaticResource Line}" BorderThickness="1"
                                 Width="360" VerticalAlignment="Center" HorizontalAlignment="Center" Padding="22">
                             <StackPanel>
                                 <Grid Margin="0,0,0,10">
@@ -947,7 +936,7 @@
                                     <PasswordBox x:Name="SetupPw1" Margin="0,0,0,10"/>
                                     <TextBlock Text="Confirm Master Password" Foreground="{StaticResource TextDim}" FontSize="11.5" Margin="0,0,0,4"/>
                                     <PasswordBox x:Name="SetupPw2" Margin="0,0,0,12"/>
-                                    <TextBlock Text="At least 10 characters: uppercase (A-Z), lowercase (a-z), number (0-9), and special character (! @ # $ ...)." Foreground="#969592" FontSize="11" Margin="0,0,0,8" TextWrapping="Wrap"/>
+                                    <TextBlock Text="At least 10 characters: uppercase (A-Z), lowercase (a-z), number (0-9), and special character (! @ # $ ...)." Foreground="#949494" FontSize="11" Margin="0,0,0,8" TextWrapping="Wrap"/>
                                     <TextBlock x:Name="SetupError" Foreground="#FF453A" FontSize="11.5" Margin="0,0,0,8" Visibility="Collapsed" TextWrapping="Wrap"/>
                                     
                                     <Button Content="Create Password" Style="{StaticResource AccentBtn}" Height="36" Click="SetupCreate_Click"/>
@@ -955,8 +944,8 @@
                                 </StackPanel>
 
                                 <StackPanel x:Name="SetupSuccessPanel" Visibility="Collapsed">
-                                    <TextBlock Text="RECOVERY KEY (save this safely):" Foreground="#E6C77A" FontSize="12" FontWeight="SemiBold" Margin="0,0,0,6"/>
-                                    <TextBox x:Name="SetupRecoveryKeyText" IsReadOnly="True" Height="40" Background="#1C1B18" Foreground="#E6C77A" FontSize="13" FontWeight="Bold"/>
+                                    <TextBlock Text="RECOVERY KEY (save this safely):" Foreground="#E6E6E6" FontSize="12" FontWeight="SemiBold" Margin="0,0,0,6"/>
+                                    <TextBox x:Name="SetupRecoveryKeyText" IsReadOnly="True" Height="40" Background="#1A1A1A" Foreground="#E6E6E6" FontSize="13" FontWeight="Bold"/>
                                     <TextBlock Text="If you forget your password, this is the only way to recover your data. Store it in a safe place!" Foreground="{StaticResource TextDim}" FontSize="11.5" Margin="0,6,0,14" TextWrapping="Wrap"/>
                                     <Button Content="Got it, Start using Locker" Style="{StaticResource AccentBtn}" Height="36" Click="SetupDone_Click"/>
                                 </StackPanel>
@@ -965,8 +954,8 @@
                     </Border>
 
                     <!-- 3. PHONE PAIRING OVERLAY -->
-                    <Border x:Name="PairingOverlay" Visibility="Collapsed" Background="#E6080704">
-                        <Border CornerRadius="12" Background="#100F0C" BorderBrush="{StaticResource Line}" BorderThickness="1"
+                    <Border x:Name="PairingOverlay" Visibility="Collapsed" Background="#E6060606">
+                        <Border CornerRadius="12" Background="#0E0E0E" BorderBrush="{StaticResource Line}" BorderThickness="1"
                                 Width="380" VerticalAlignment="Center" HorizontalAlignment="Center" Padding="22">
                             <StackPanel HorizontalAlignment="Center">
                                 <Grid Width="336" Margin="0,0,0,12">
@@ -977,7 +966,7 @@
                                 <TextBlock Text="Open Locker Companion on your phone and scan this QR code:" Foreground="{StaticResource TextDim}" FontSize="12" HorizontalAlignment="Center" Margin="0,0,0,14" TextWrapping="Wrap" TextAlignment="Center"/>
 
                                 <!-- Big PIN Display -->
-                                <Border Background="#FFFFFF" BorderBrush="#393835" BorderThickness="1" CornerRadius="12" Padding="10" HorizontalAlignment="Center" Margin="0,0,0,14" Width="240" Height="240">
+                                <Border Background="#FFFFFF" BorderBrush="#373737" BorderThickness="1" CornerRadius="12" Padding="10" HorizontalAlignment="Center" Margin="0,0,0,14" Width="240" Height="240">
                                     <Image x:Name="PairingQrImage" Width="216" Height="216" Stretch="Uniform" RenderOptions.BitmapScalingMode="NearestNeighbor"/>
                                 </Border>
 
@@ -992,8 +981,8 @@
                     </Border>
 
                     <!-- 4. UNINSTALL CONFIRMATION OVERLAY -->
-                    <Border x:Name="UninstallOverlay" Visibility="Collapsed" Background="#E6080704">
-                        <Border CornerRadius="12" Background="#120A0E" BorderBrush="#521D28" BorderThickness="1"
+                    <Border x:Name="UninstallOverlay" Visibility="Collapsed" Background="#E6060606">
+                        <Border CornerRadius="12" Background="#0E0E0E" BorderBrush="#521D28" BorderThickness="1"
                                 Width="360" VerticalAlignment="Center" HorizontalAlignment="Center" Padding="22">
                             <StackPanel>
                                 <TextBlock Text="Confirm Locker Uninstall" Foreground="#FF453A" FontSize="15" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,0,0,6"/>
@@ -1018,7 +1007,7 @@
                     
                     <!-- 5. VAULT CREATE / LOCK OVERLAY -->
                     <Border x:Name="VaultCreateOverlay" Visibility="Collapsed" Background="#F0000000">
-                        <Border CornerRadius="12" Background="#0C0B08" BorderBrush="#262522" BorderThickness="1"
+                        <Border CornerRadius="12" Background="#0A0A0A" BorderBrush="#242424" BorderThickness="1"
                                 Width="440" VerticalAlignment="Center" HorizontalAlignment="Center" Padding="22">
                             <StackPanel>
                                 <Grid Margin="0,0,0,14">
@@ -1029,7 +1018,7 @@
                                 <TextBlock Text="Folder:" Foreground="{StaticResource TextMuted}" FontSize="11" FontWeight="Bold" Margin="0,0,0,4"/>
                                 <TextBox x:Name="VaultCreateFolderPath" IsReadOnly="True" Margin="0,0,0,10"/>
 
-                                <TextBlock x:Name="VaultCreateNote" Text="All files in this folder will be encrypted in place (.locked), leaving no unencrypted originals. If you forget this password, files cannot be recovered." Foreground="#FBBF24" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,12"/>
+                                <TextBlock x:Name="VaultCreateNote" Text="All files in this folder will be encrypted in place (.locked), leaving no unencrypted originals. If you forget this password, files cannot be recovered." Foreground="#E6E6E6" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,12"/>
 
                                 <TextBlock x:Name="VaultCreatePwLabel1" Text="Vault Password (independent from Locker Pro):" Foreground="{StaticResource TextDim}" FontSize="11.5" Margin="0,0,0,4"/>
                                 <PasswordBox x:Name="VaultCreatePw1" Margin="0,0,0,10"/>
@@ -1042,7 +1031,7 @@
                                 <TextBlock x:Name="VaultCreateError" Foreground="#FF453A" FontSize="11.5" Margin="0,0,0,10" Visibility="Collapsed" TextWrapping="Wrap"/>
 
                                 <StackPanel x:Name="VaultCreateProgressPanel" Visibility="Collapsed" Margin="0,0,0,12">
-                                    <ProgressBar x:Name="VaultCreateProgressBar" Height="6" Background="#1C1B18" Foreground="#D4AF37" Value="0" Maximum="100" Margin="0,0,0,6"/>
+                                    <ProgressBar x:Name="VaultCreateProgressBar" Height="6" Background="#1A1A1A" Foreground="#FFFFFF" Value="0" Maximum="100" Margin="0,0,0,6"/>
                                     <TextBlock x:Name="VaultCreateProgressText" Text="Encrypting files..." Foreground="{StaticResource TextDim}" FontSize="11.5" HorizontalAlignment="Center"/>
                                 </StackPanel>
 
@@ -1059,8 +1048,8 @@
                     </Border>
 
                     <!-- 6. VAULT UNLOCK OVERLAY -->
-                    <Border x:Name="VaultUnlockOverlay" Visibility="Collapsed" Background="#E6080704">
-                        <Border CornerRadius="12" Background="#100F0C" BorderBrush="{StaticResource Line}" BorderThickness="1"
+                    <Border x:Name="VaultUnlockOverlay" Visibility="Collapsed" Background="#E6060606">
+                        <Border CornerRadius="12" Background="#0E0E0E" BorderBrush="{StaticResource Line}" BorderThickness="1"
                                 Width="400" VerticalAlignment="Center" HorizontalAlignment="Center" Padding="22">
                             <StackPanel>
                                 <Grid Margin="0,0,0,14">
@@ -1078,7 +1067,7 @@
                                 <TextBlock x:Name="VaultUnlockError" Foreground="#FF453A" FontSize="11.5" Margin="0,0,0,10" Visibility="Collapsed" TextWrapping="Wrap"/>
                                 
                                 <StackPanel x:Name="VaultUnlockProgressPanel" Visibility="Collapsed" Margin="0,0,0,12">
-                                    <ProgressBar x:Name="VaultUnlockProgressBar" Height="6" Background="#1C1B18" Foreground="#10B981" Value="0" Maximum="100" Margin="0,0,0,6"/>
+                                    <ProgressBar x:Name="VaultUnlockProgressBar" Height="6" Background="#1A1A1A" Foreground="#FFFFFF" Value="0" Maximum="100" Margin="0,0,0,6"/>
                                     <TextBlock x:Name="VaultUnlockProgressText" Text="Decrypting files..." Foreground="{StaticResource TextDim}" FontSize="11.5" HorizontalAlignment="Center"/>
                                 </StackPanel>
                                 
@@ -1088,15 +1077,15 @@
                     </Border>
 
                     <!-- 7. FOLDER LOCK / UNLOCK PROGRESS OVERLAY -->
-                    <Border x:Name="FolderOpOverlay" Visibility="Collapsed" Background="#E6080704">
-                        <Border CornerRadius="12" Background="#100F0C" BorderBrush="{StaticResource Line}" BorderThickness="1"
+                    <Border x:Name="FolderOpOverlay" Visibility="Collapsed" Background="#E6060606">
+                        <Border CornerRadius="12" Background="#0E0E0E" BorderBrush="{StaticResource Line}" BorderThickness="1"
                                 Width="400" VerticalAlignment="Center" HorizontalAlignment="Center" Padding="22">
                             <StackPanel>
                                 <TextBlock x:Name="FolderOpTitle" Text="Encrypting Folder..." Foreground="{StaticResource TextMain}"
                                            FontSize="15" FontWeight="SemiBold" Margin="0,0,0,6"/>
                                 <TextBlock x:Name="FolderOpPathText" Text="" Foreground="{StaticResource TextDim}"
                                            FontSize="11.5" TextTrimming="CharacterEllipsis" Margin="0,0,0,14"/>
-                                <ProgressBar x:Name="FolderOpProgressBar" Height="6" Background="#1C1B18" Foreground="#10B981"
+                                <ProgressBar x:Name="FolderOpProgressBar" Height="6" Background="#1A1A1A" Foreground="#FFFFFF"
                                              Minimum="0" Maximum="100" Value="0" Margin="0,0,0,8"/>
                                 <TextBlock x:Name="FolderOpProgressText" Text="Preparing..." Foreground="{StaticResource TextMain}"
                                            FontSize="12" TextTrimming="CharacterEllipsis" HorizontalAlignment="Center"/>

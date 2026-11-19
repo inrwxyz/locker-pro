@@ -7,9 +7,9 @@
         ResizeMode="NoResize" Topmost="True" ShowInTaskbar="False"
         Opacity="0">
     <Window.Resources>
-        <SolidColorBrush x:Key="Glass" Color="#E60B0A07"/>
-        <SolidColorBrush x:Key="Line" Color="#2D2C29"/>
-        <SolidColorBrush x:Key="Soft" Color="#A8A7A4"/>
+        <SolidColorBrush x:Key="Glass" Color="#FF0A0A0A"/>
+        <SolidColorBrush x:Key="Line" Color="#2B2B2B"/>
+        <SolidColorBrush x:Key="Soft" Color="#A6A6A6"/>
         <DropShadowEffect x:Key="TS" Color="Black" BlurRadius="6" ShadowDepth="0" Opacity="0.85"/>
 
         <Style x:Key="PlainButton" TargetType="Button">
@@ -24,7 +24,7 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Bd" Property="Background" Value="#292825"/>
+                                <Setter TargetName="Bd" Property="Background" Value="#272727"/>
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter TargetName="Bd" Property="Opacity" Value="0.4"/>
@@ -34,14 +34,33 @@
                 </Setter.Value>
             </Setter>
         </Style>
+        <Style x:Key="Field" TargetType="Control">
+            <Setter Property="Background" Value="#111111"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderBrush" Value="{StaticResource Line}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Control">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="8">
+                            <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="#FFFFFF"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </Window.Resources>
 
     <Grid Margin="14">
-        <Border x:Name="Card" CornerRadius="14" Background="{StaticResource Glass}"
+        <Border x:Name="Card" CornerRadius="12" Background="{StaticResource Glass}"
                 BorderBrush="{StaticResource Line}" BorderThickness="1" ClipToBounds="True">
-            <Border.Effect>
-                <DropShadowEffect BlurRadius="16" ShadowDepth="4" Opacity="0.5" Color="#000000" Direction="270"/>
-            </Border.Effect>
             <Border.RenderTransform>
                 <TranslateTransform x:Name="ShakeTransform" X="0"/>
             </Border.RenderTransform>
@@ -50,8 +69,23 @@
                 <!-- Icon / dots (+ chip e Lock now button) -->
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                     <Grid x:Name="IconGrid" Width="40" Height="40">
-                        <TextBlock x:Name="GlyphIcon" Text="&#xE72E;" FontFamily="Segoe MDL2 Assets"
-                                   FontSize="28" Foreground="White" Effect="{StaticResource TS}"
+                        <Image x:Name="LogoImg" Source="/logo.png" Width="40" Height="40"
+                               RenderOptions.BitmapScalingMode="HighQuality">
+                            <Image.Style>
+                                <Style TargetType="Image">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding Visibility, ElementName=GlyphIcon}" Value="Visible">
+                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding Visibility, ElementName=DotsPanel}" Value="Visible">
+                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Image.Style>
+                        </Image>
+                        <TextBlock x:Name="GlyphIcon" Visibility="Collapsed" Text="&#xE72E;" FontFamily="Segoe MDL2 Assets"
+                                   FontSize="28" Foreground="White"
                                    HorizontalAlignment="Center" VerticalAlignment="Center"
                                    RenderTransformOrigin="0.5,0.5">
                             <TextBlock.RenderTransform>
@@ -78,7 +112,7 @@
                 <!-- Live encryption/decryption progress -->
                 <StackPanel x:Name="ProgressPanel" Margin="0,10,0,0" Visibility="Collapsed">
                     <ProgressBar x:Name="OpProgressBar" Height="5" Minimum="0" Maximum="100" Value="0"
-                                 Background="#1E1D1A" Foreground="#FFFFFF" BorderThickness="0"/>
+                                 Background="#1C1C1C" Foreground="#FFFFFF" BorderThickness="0"/>
                     <TextBlock x:Name="ProgressDetail" Text="" Foreground="{StaticResource Soft}" FontSize="11"
                                HorizontalAlignment="Center" Margin="0,6,0,0"
                                TextTrimming="CharacterEllipsis" MaxWidth="280"/>
@@ -87,15 +121,15 @@
                 <!-- Password form -->
                 <StackPanel x:Name="FormPanel" Margin="0,12,0,0">
                     <Grid>
-                        <PasswordBox x:Name="PwBox" Height="36" FontSize="14" Padding="10,6,40,6"
-                                     Background="#161512" Foreground="White" CaretBrush="White"
+                        <PasswordBox x:Name="PwBox" Style="{StaticResource Field}" Height="36" FontSize="14" Padding="10,6,40,6"
+                                     Background="#141414" Foreground="White" CaretBrush="White"
                                      BorderBrush="{StaticResource Line}" BorderThickness="1"/>
-                        <TextBox x:Name="PwText" Height="36" FontSize="14" Padding="10,6,40,6"
-                                 Background="#161512" Foreground="White" CaretBrush="White"
+                        <TextBox x:Name="PwText" Style="{StaticResource Field}" Height="36" FontSize="14" Padding="10,6,40,6"
+                                 Background="#141414" Foreground="White" CaretBrush="White"
                                  BorderBrush="{StaticResource Line}" BorderThickness="1" Visibility="Collapsed"/>
                         <Button x:Name="EyeBtn" Content="&#xE7B3;" FontFamily="Segoe MDL2 Assets"
                                 HorizontalAlignment="Right" Width="36" Height="36"
-                                Background="Transparent" Foreground="#959491" BorderThickness="0"
+                                Background="Transparent" Foreground="#939393" BorderThickness="0"
                                 Cursor="Hand" Click="EyeBtn_Click"/>
                     </Grid>
 
@@ -104,10 +138,10 @@
                             <ColumnDefinition/><ColumnDefinition Width="10"/><ColumnDefinition/>
                         </Grid.ColumnDefinitions>
                         <Button x:Name="CancelBtn" Grid.Column="0" Content="Cancel" Height="34"
-                                Style="{StaticResource PlainButton}" Background="#1C1B18" Foreground="#959491"
+                                Style="{StaticResource PlainButton}" Background="#1A1A1A" Foreground="#939393"
                                 IsCancel="True" Click="CancelBtn_Click"/>
                         <Button x:Name="UnlockBtn" Grid.Column="2" Content="Unlock" Height="34"
-                                Style="{StaticResource PlainButton}" Background="White" Foreground="#0C0B08"
+                                Style="{StaticResource PlainButton}" Background="White" Foreground="#0A0A0A"
                                 FontWeight="Bold" IsDefault="True" Click="UnlockBtn_Click"/>
                     </Grid>
                 </StackPanel>

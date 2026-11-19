@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.1.0
+
+- Redesigned 3D chrome biometric lock emblem: removed diagonal slash artifacts, clarified the fingerprint texture, balanced black borders, and introduced anti-aliased squircle rounded corners.
+- Modernized and refreshed UI layout across the Manager, Installer, Uninstaller, Guard popup, and toast chips.
+- Hardened the build script pipeline with automated cache purges to ensure instant reflection of compiled XAML modifications.
+
 ## 2.0.0
 
 - Upgraded Folder Lock encryption/decryption throughput (1 MB chunked streaming, zero-allocation nonce handling, parallel file processing, and backward compatibility with legacy 64 KB `.aplk` chunks).

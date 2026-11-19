@@ -7,12 +7,12 @@
         MouseLeftButtonDown="Window_MouseDown">
 
     <Window.Resources>
-        <SolidColorBrush x:Key="BgDark" Color="#0B0A07"/>
-        <SolidColorBrush x:Key="CardBg" Color="#151411"/>
-        <SolidColorBrush x:Key="Line" Color="#22211E"/>
-        <SolidColorBrush x:Key="TextMain" Color="#F7F6F3"/>
-        <SolidColorBrush x:Key="TextDim" Color="#878683"/>
-        <SolidColorBrush x:Key="TextMuted" Color="#585754"/>
+        <SolidColorBrush x:Key="BgDark" Color="#090909"/>
+        <SolidColorBrush x:Key="CardBg" Color="#131313"/>
+        <SolidColorBrush x:Key="Line" Color="#202020"/>
+        <SolidColorBrush x:Key="TextMain" Color="#F5F5F5"/>
+        <SolidColorBrush x:Key="TextDim" Color="#858585"/>
+        <SolidColorBrush x:Key="TextMuted" Color="#565656"/>
 
         <Style x:Key="TitleBtn" TargetType="Button">
             <Setter Property="Width" Value="34"/>
@@ -39,8 +39,8 @@
 
         <!-- Inex Island Clean White Button -->
         <Style x:Key="AccentBtn" TargetType="Button">
-            <Setter Property="Background" Value="#D4AF37"/>
-            <Setter Property="Foreground" Value="#0C0B08"/>
+            <Setter Property="Background" Value="#FFFFFF"/>
+            <Setter Property="Foreground" Value="#0A0A0A"/>
             <Setter Property="FontSize" Value="13"/>
             <Setter Property="FontWeight" Value="Bold"/>
             <Setter Property="Height" Value="38"/>
@@ -53,10 +53,10 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Bd" Property="Background" Value="#E6C77A"/>
+                                <Setter TargetName="Bd" Property="Background" Value="#E6E6E6"/>
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="Bd" Property="Background" Value="#B8942B"/>
+                                <Setter TargetName="Bd" Property="Background" Value="#CFCFCF"/>
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter TargetName="Bd" Property="Opacity" Value="0.4"/>
@@ -77,9 +77,6 @@
 
     <Grid Margin="12">
         <Border Background="{StaticResource BgDark}" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="14" ClipToBounds="True">
-            <Border.Effect>
-                <DropShadowEffect BlurRadius="16" ShadowDepth="4" Opacity="0.55" Color="#000000" Direction="270"/>
-            </Border.Effect>
             <Grid Margin="20,16,20,18">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
@@ -90,10 +87,10 @@
                 <!-- Top Header -->
                 <Grid Grid.Row="0">
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                        <TextBlock Text="/" Foreground="#D4AF37" FontWeight="Bold" FontSize="16" VerticalAlignment="Center"/>
+                        <TextBlock Text="/" Foreground="#FFFFFF" FontWeight="Bold" FontSize="16" VerticalAlignment="Center"/>
                         <TextBlock Text=" Locker" Foreground="{StaticResource TextMain}" FontWeight="SemiBold" FontSize="15" VerticalAlignment="Center"/>
-                        <Border Background="#22211E" CornerRadius="4" Padding="5,2" Margin="8,0,0,0" VerticalAlignment="Center">
-                            <TextBlock Text="INSTALLER" Foreground="#D4AF37" FontSize="9.5" FontWeight="Bold"/>
+                        <Border Background="#202020" CornerRadius="4" Padding="5,2" Margin="8,0,0,0" VerticalAlignment="Center">
+                            <TextBlock Text="INSTALLER" Foreground="#FFFFFF" FontSize="9.5" FontWeight="Bold"/>
                         </Border>
                     </StackPanel>
                     <Button Content="&#xE8BB;" FontFamily="Segoe MDL2 Assets" FontSize="11" Style="{StaticResource TitleBtn}"
@@ -105,7 +102,7 @@
                     <!-- Step 1: Install Options -->
                     <StackPanel x:Name="OptionsPanel">
                         <StackPanel Orientation="Horizontal" Margin="0,0,0,14">
-                            <Border Width="46" Height="46" CornerRadius="12" Background="#1C1B18" BorderBrush="#2E2D2A" BorderThickness="1" Margin="0,0,14,0" VerticalAlignment="Center">
+                            <Border Width="46" Height="46" CornerRadius="12" Background="#1A1A1A" BorderBrush="#2C2C2C" BorderThickness="1" Margin="0,0,14,0" VerticalAlignment="Center">
                                 <TextBlock Text="&#xE72E;" FontFamily="Segoe MDL2 Assets" FontSize="22" Foreground="#FFFFFF"
                                            HorizontalAlignment="Center" VerticalAlignment="Center"/>
                             </Border>
@@ -138,7 +135,7 @@
                     <!-- Step 2: Installing Progress -->
                     <StackPanel x:Name="ProgressPanel" Visibility="Collapsed" VerticalAlignment="Center">
                         <TextBlock x:Name="ProgressStatusText" Text="Installing Locker PRO..." Foreground="{StaticResource TextMain}" FontSize="14" FontWeight="SemiBold" Margin="0,0,0,8"/>
-                        <ProgressBar x:Name="InstallProgressBar" Height="5" Background="#22211E" Foreground="#D4AF37" IsIndeterminate="True" Margin="0,0,0,10"/>
+                        <ProgressBar x:Name="InstallProgressBar" Height="5" Background="#202020" Foreground="#FFFFFF" IsIndeterminate="True" Margin="0,0,0,10"/>
                         <TextBlock x:Name="ProgressDetailText" Text="Extracting binaries..." Foreground="{StaticResource TextDim}" FontSize="11.5"/>
                     </StackPanel>
                 </Grid>

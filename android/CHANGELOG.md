@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.1.0
+
+- Fully synced companion application branding, webview assets, and launcher icons (adaptive foreground, Android 13+ themed monochrome, and legacy round/squircle mipmaps) with the redesigned 3D biometric lock emblem.
+- Bumped companion app release version to `2.1.0`.
+
 ## 2.0.0
 
 - Updated companion UI theme, typography (`Inter`), and launcher icons.

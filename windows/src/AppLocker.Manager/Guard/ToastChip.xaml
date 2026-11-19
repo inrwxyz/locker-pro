@@ -8,13 +8,8 @@
         Opacity="0">
 
     <Grid Margin="6,4">
-        <Border x:Name="Card" CornerRadius="10" Background="#F00F0E0B"
-                BorderBrush="#32312E" BorderThickness="1">
-            <Border.Effect>
-                <DropShadowEffect BlurRadius="10" ShadowDepth="3" Opacity="0.5"
-                                  Color="#000000" Direction="270"/>
-            </Border.Effect>
-
+        <Border x:Name="Card" CornerRadius="10" Background="#F00D0D0D"
+                BorderBrush="#303030" BorderThickness="1">
             <StackPanel Orientation="Horizontal" Margin="12,10" VerticalAlignment="Center">
                 <!-- Glyph Icon -->
                 <TextBlock x:Name="GlyphIcon" Text="&#xE72E;" FontFamily="Segoe MDL2 Assets"
@@ -23,10 +18,10 @@
 
                 <!-- Text stack -->
                 <StackPanel VerticalAlignment="Center">
-                    <TextBlock x:Name="TitleText" Text="Paired!" Foreground="#F7F6F3"
+                    <TextBlock x:Name="TitleText" Text="Paired!" Foreground="#F5F5F5"
                                FontSize="12" FontWeight="SemiBold"
                                TextTrimming="CharacterEllipsis" MaxWidth="180"/>
-                    <TextBlock x:Name="SubText" Text="" Foreground="#989794"
+                    <TextBlock x:Name="SubText" Text="" Foreground="#969696"
                                FontSize="11" TextTrimming="CharacterEllipsis"
                                MaxWidth="180" Margin="0,1,0,0"/>
                 </StackPanel>

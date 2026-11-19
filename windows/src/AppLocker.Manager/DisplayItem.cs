@@ -41,7 +41,7 @@ public class DisplayItem
 		{
 			if (!IsFolder)
 			{
-				return new SolidColorBrush(Color.FromRgb(230, 199, 122));
+				return new SolidColorBrush(Color.FromRgb(230, 230, 230));
 			}
 			return new SolidColorBrush(Color.FromRgb(230, 229, 226));
 		}

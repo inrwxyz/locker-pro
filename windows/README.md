@@ -1,6 +1,6 @@
 # Locker Pro (Windows)
 
-**Version 2.0.0** · Windows 10/11 (x64) · MIT License
+**Version 2.1.0** · Windows 10/11 (x64) · MIT License
 
 Local-first folder and app locker for Windows, with optional fingerprint unlock from your Android phone.  
 No cloud, no account, no telemetry: everything stays on your PC and local Wi-Fi.

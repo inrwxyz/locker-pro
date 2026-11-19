@@ -1,6 +1,6 @@
 # Locker Companion
 
-**Version 2.0.0** · Android 7.0+ (API 24) · MIT License
+**Version 2.1.0** · Android 7.0+ (API 24) · MIT License
 
 Android companion app for [**Locker Pro**](../windows) (Windows). It lets you approve folder and app unlock requests on your PC using your phone's fingerprint sensor over your local Wi-Fi.  
 No cloud, no account, no analytics.

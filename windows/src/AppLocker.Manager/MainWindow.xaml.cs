@@ -73,7 +73,7 @@ public partial class MainWindow : Window, IComponentConnector, IStyleConnector
 			LoadPhoneTab();
 			if (wasPaired && current.PairedPhone == null)
 			{
-				Guard.ToastChip.Show("\uE72F", "Phone Disconnected", "Unpaired from phone", System.Windows.Media.Color.FromRgb(150, 144, 134), 2800, this);
+				Guard.ToastChip.Show("\uE72F", "Phone Disconnected", "Unpaired from phone", System.Windows.Media.Color.FromRgb(150, 150, 150), 2800, this);
 			}
 		}
 		catch { }
@@ -84,7 +84,7 @@ public partial class MainWindow : Window, IComponentConnector, IStyleConnector
 		Dispatcher.InvokeAsync(() =>
 		{
 			LoadPhoneTab();
-			Guard.ToastChip.Show("\uE72F", "Phone Disconnected", "Unpaired from phone", System.Windows.Media.Color.FromRgb(150, 144, 134), 2800, this);
+			Guard.ToastChip.Show("\uE72F", "Phone Disconnected", "Unpaired from phone", System.Windows.Media.Color.FromRgb(150, 150, 150), 2800, this);
 		});
 	}
 
@@ -125,20 +125,20 @@ public partial class MainWindow : Window, IComponentConnector, IStyleConnector
 		{
 			_isVaultAuthenticated = false; // Require Master Password when re-entering Vault!
 			TabLockedPanel.Visibility = Visibility.Visible;
-			HeaderTitle.Text = "LOCKED ITEMS";
+			HeaderTitle.Text = "Locked Items";
 			LoadList();
 		}
 		else if (NavSecurity.IsChecked == true)
 		{
 			_isVaultAuthenticated = false; // Require Master Password when re-entering Vault!
 			TabSecurityPanel.Visibility = Visibility.Visible;
-			HeaderTitle.Text = "SECURITY";
+			HeaderTitle.Text = "Security";
 		}
 		else if (NavPhone.IsChecked == true)
 		{
 			_isVaultAuthenticated = false; // Require Master Password when re-entering Vault!
 			TabPhonePanel.Visibility = Visibility.Visible;
-			HeaderTitle.Text = "PHONE LINK";
+			HeaderTitle.Text = "Phone Link";
 			LoadPhoneTab();
 		}
 		else if (NavVault != null && NavVault.IsChecked == true)
@@ -152,21 +152,21 @@ public partial class MainWindow : Window, IComponentConnector, IStyleConnector
 					NavLocked.IsChecked = true;
 					_suppressNav = false;
 					TabLockedPanel.Visibility = Visibility.Visible;
-					HeaderTitle.Text = "LOCKED ITEMS";
+					HeaderTitle.Text = "Locked Items";
 					return;
 				}
 				Array.Clear(vaultKey);
 				_isVaultAuthenticated = true;
 			}
 			TabVaultPanel!.Visibility = Visibility.Visible;
-			HeaderTitle.Text = "VAULT LOCKER";
+			HeaderTitle.Text = "Vault Locker";
 			LoadVaultsList();
 		}
 		else if (NavAbout.IsChecked == true)
 		{
 			_isVaultAuthenticated = false; // Require Master Password when re-entering Vault!
 			TabAboutPanel.Visibility = Visibility.Visible;
-			HeaderTitle.Text = "ABOUT & SYSTEM";
+			HeaderTitle.Text = "About & System";
 			LoadAboutTab();
 		}
 	}
@@ -348,7 +348,7 @@ public partial class MainWindow : Window, IComponentConnector, IStyleConnector
 		}
 		if (FolderLocker.IsLocked(folder))
 		{
-			Guard.ToastChip.Show("\uE72E", "Already Locked", "Folder is already locked", System.Windows.Media.Color.FromRgb(251, 191, 36), 2500, this);
+			Guard.ToastChip.Show("\uE72E", "Already Locked", "Folder is already locked", System.Windows.Media.Color.FromRgb(230, 230, 230), 2500, this);
 			return;
 		}
 		if (!LockSafety.IsSafeFolder(folder, out string why))
@@ -728,7 +728,7 @@ public partial class MainWindow : Window, IComponentConnector, IStyleConnector
 				if (MasterConfig.ChangePassword(password, password2))
 				{
 					PassStatusMsg.Text = "Master Password successfully updated!";
-					PassStatusMsg.Foreground = new SolidColorBrush(Color.FromRgb(16, 185, 129));
+					PassStatusMsg.Foreground = new SolidColorBrush(Color.FromRgb(255, 255, 255));
 					PassStatusMsg.Visibility = Visibility.Visible;
 					OldPwBox.Clear();
 					NewPwBox.Clear();
@@ -835,12 +835,12 @@ public partial class MainWindow : Window, IComponentConnector, IStyleConnector
 		{
 			byte[] key = (byte[])dlg.MasterKey.Clone();
 			Array.Clear(dlg.MasterKey);
-			Guard.ToastChip.Show("\uE72B", "Confirm fingerprint on phone", "Touch the fingerprint sensor", System.Windows.Media.Color.FromRgb(251, 191, 36), 4000, this);
+			Guard.ToastChip.Show("\uE72B", "Confirm fingerprint on phone", "Touch the fingerprint sensor", System.Windows.Media.Color.FromRgb(230, 230, 230), 4000, this);
 			var (ok, reason) = await PhoneCompanionService.EnrollBiometricAsync(key);
 			Array.Clear(key);
 			LoadPhoneTab();
 			if (ok)
-				Guard.ToastChip.Show("\uE72B", "Fingerprint Linked!", "This phone's fingerprint is ready", System.Windows.Media.Color.FromRgb(52, 211, 153), 3000, this);
+				Guard.ToastChip.Show("\uE72B", "Fingerprint Linked!", "This phone's fingerprint is ready", System.Windows.Media.Color.FromRgb(255, 255, 255), 3000, this);
 			else
 				Guard.ToastChip.Show("\uE72F", "Link failed", reason, System.Windows.Media.Color.FromRgb(248, 113, 113), 3500, this);
 		}
@@ -864,9 +864,9 @@ public partial class MainWindow : Window, IComponentConnector, IStyleConnector
 			var (ok, reason) = await PhoneCompanionService.EnrollBiometricAsync(key, 1500);
 			LoadPhoneTab();
 			if (ok)
-				Guard.ToastChip.Show("\uE72B", "Fingerprint Linked!", "This phone's fingerprint is ready", System.Windows.Media.Color.FromRgb(52, 211, 153), 3000, this);
+				Guard.ToastChip.Show("\uE72B", "Fingerprint Linked!", "This phone's fingerprint is ready", System.Windows.Media.Color.FromRgb(255, 255, 255), 3000, this);
 			else
-				Guard.ToastChip.Show("\uE72F", "Fingerprint link failed", "Press Sync Key in Phone Link (" + reason + ")", System.Windows.Media.Color.FromRgb(251, 191, 36), 4000, this);
+				Guard.ToastChip.Show("\uE72F", "Fingerprint link failed", "Press Sync Key in Phone Link (" + reason + ")", System.Windows.Media.Color.FromRgb(230, 230, 230), 4000, this);
 		}
 		catch { }
 		finally { Array.Clear(key); }
@@ -897,7 +897,7 @@ private void StartPhonePair_Click(object sender, RoutedEventArgs e)
 				LoadPhoneTab();
 				InexIslandBridge.NotifyPhoneUnpaired(unpairedName);
 				_ = PhoneCompanionService.NotifyUnpairToPhoneAsync(phoneIp, phoneSecret);
-				Guard.ToastChip.Show("\uE72F", "Phone Unpaired", "Phone disconnected", System.Windows.Media.Color.FromRgb(150, 144, 134), 2800, this);
+				Guard.ToastChip.Show("\uE72F", "Phone Unpaired", "Phone disconnected", System.Windows.Media.Color.FromRgb(150, 150, 150), 2800, this);
 			}
 			return;
 		}
@@ -924,7 +924,7 @@ private void StartPhonePair_Click(object sender, RoutedEventArgs e)
 					PairingOverlay.Visibility = Visibility.Collapsed;
 					LoadPhoneTab();
 					InexIslandBridge.NotifyPhonePaired(info.DeviceName);
-					Guard.ToastChip.Show("\uE72B", info.DeviceName + " Paired!", "Confirm fingerprint on phone", System.Windows.Media.Color.FromRgb(52, 211, 153), 3000, this);
+					Guard.ToastChip.Show("\uE72B", info.DeviceName + " Paired!", "Confirm fingerprint on phone", System.Windows.Media.Color.FromRgb(255, 255, 255), 3000, this);
 				}
 			}));
 		});
@@ -965,7 +965,7 @@ private void StartPhonePair_Click(object sender, RoutedEventArgs e)
 					PairingOverlay.Visibility = Visibility.Collapsed;
 					LoadPhoneTab();
 					InexIslandBridge.NotifyPhonePaired(current2.PairedPhone.DeviceName);
-					Guard.ToastChip.Show("\uE72B", current2.PairedPhone.DeviceName + " Paired!", "Confirm fingerprint on phone", System.Windows.Media.Color.FromRgb(52, 211, 153), 3000, this);
+					Guard.ToastChip.Show("\uE72B", current2.PairedPhone.DeviceName + " Paired!", "Confirm fingerprint on phone", System.Windows.Media.Color.FromRgb(255, 255, 255), 3000, this);
 				}
 			}
 		};
@@ -995,11 +995,11 @@ private void StartPhonePair_Click(object sender, RoutedEventArgs e)
 	{
 		if (LockerSettings.Current.PairedPhone == null)
 		{
-			Guard.ToastChip.Show("\uE72F", "No Phone Paired", "Pair a phone first", System.Windows.Media.Color.FromRgb(251, 191, 36), 2500, this);
+			Guard.ToastChip.Show("\uE72F", "No Phone Paired", "Pair a phone first", System.Windows.Media.Color.FromRgb(230, 230, 230), 2500, this);
 		}
 		else if (await PhoneCompanionService.RequestBiometricUnlockAsync("Test Verification"))
 		{
-			Guard.ToastChip.Show("\uE72B", "Biometric Verified!", "Phone auth works", System.Windows.Media.Color.FromRgb(52, 211, 153), 2500, this);
+			Guard.ToastChip.Show("\uE72B", "Biometric Verified!", "Phone auth works", System.Windows.Media.Color.FromRgb(255, 255, 255), 2500, this);
 		}
 		else
 		{
@@ -1033,7 +1033,7 @@ private void StartPhonePair_Click(object sender, RoutedEventArgs e)
 			if (flag2)
 			{
 				IslandBadgeText.Text = "Running";
-				IslandBadgeText.Foreground = new SolidColorBrush(Color.FromRgb(16, 185, 129));
+				IslandBadgeText.Foreground = new SolidColorBrush(Color.FromRgb(255, 255, 255));
 				IslandBadge.Background = new SolidColorBrush(Color.FromArgb(51, 16, 185, 129));
 			}
 			else
@@ -1180,7 +1180,7 @@ private void StartPhonePair_Click(object sender, RoutedEventArgs e)
 		public bool IsLocked { get; set; }
 		public string StatusText => IsLocked ? "LOCKED" : "UNLOCKED";
 		public System.Windows.Media.Brush StatusBadgeBg => IsLocked ? new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(39, 14, 21)) : new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(26, 25, 22));
-		public System.Windows.Media.Brush StatusTextFg => IsLocked ? new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(248, 113, 113)) : new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(52, 211, 153));
+		public System.Windows.Media.Brush StatusTextFg => IsLocked ? new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(248, 113, 113)) : new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(255, 255, 255));
 		public string ActionButtonText => IsLocked ? "Unlock" : "Lock";
 	}
 
@@ -1352,7 +1352,7 @@ private void StartPhonePair_Click(object sender, RoutedEventArgs e)
 			VaultCreateOverlay.Visibility = Visibility.Collapsed;
 			LoadVaultsList();
 			InexIslandBridge.NotifyLock(vaultName);
-			Guard.ToastChip.Show("", "Vault Locked!", vaultName, System.Windows.Media.Color.FromRgb(52, 211, 153), 3000, this);
+			Guard.ToastChip.Show("", "Vault Locked!", vaultName, System.Windows.Media.Color.FromRgb(255, 255, 255), 3000, this);
 		}
 		catch (Exception ex)
 		{
@@ -1398,7 +1398,7 @@ private void StartPhonePair_Click(object sender, RoutedEventArgs e)
 			VaultUnlockOverlay.Visibility = Visibility.Collapsed;
 			LoadVaultsList();
 			InexIslandBridge.NotifyUnlock("password", Path.GetFileName(_currentUnlockVaultPath.TrimEnd('\\', '/')));
-			Guard.ToastChip.Show("", "Vault Unlocked!", Path.GetFileName(_currentUnlockVaultPath.TrimEnd('\\', '/')), System.Windows.Media.Color.FromRgb(52, 211, 153), 3000, this);
+			Guard.ToastChip.Show("", "Vault Unlocked!", Path.GetFileName(_currentUnlockVaultPath.TrimEnd('\\', '/')), System.Windows.Media.Color.FromRgb(255, 255, 255), 3000, this);
 			System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo { FileName = _currentUnlockVaultPath, UseShellExecute = true });
 		}
 		catch (Exception ex)

@@ -19,10 +19,14 @@ $payloadZip   = Join-Path $installerDir "payload.zip"
 $installerOut = Join-Path $root "installer_out"
 $releaseDir   = Join-Path $root "release"
 
-Write-Host "=== 1. Cleaning dist and payload ==="
+Write-Host "=== 1. Cleaning dist, payload, bin and obj caches ==="
 if (Test-Path $dist) { Remove-Item -Path $dist -Recurse -Force }
 New-Item -ItemType Directory -Path $dist | Out-Null
 if (Test-Path $payloadZip) { Remove-Item -Path $payloadZip -Force }
+
+Get-ChildItem -Path (Join-Path $root "src") -Recurse -Directory -Include "bin", "obj" | ForEach-Object {
+    try { Remove-Item -Path $_.FullName -Recurse -Force -ErrorAction SilentlyContinue } catch { }
+}
 
 Write-Host "=== 2. Publishing Manager (Locker.exe) ==="
 dotnet publish (Join-Path $root "src\AppLocker.Manager") -c Release -o $dist --no-self-contained
