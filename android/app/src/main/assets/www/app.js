@@ -85,22 +85,6 @@ function setupTabNavigation() {
 
 // Dashboard Actions
 function setupDashboardActions() {
-  // Toggle pair accordion
-  const btnTogglePair = document.getElementById('btn-toggle-pair-box');
-  const pairInputsBox = document.getElementById('pair-inputs-box');
-  if (btnTogglePair && pairInputsBox) {
-    btnTogglePair.addEventListener('click', () => {
-      const isHidden = pairInputsBox.classList.contains('hidden');
-      if (isHidden) {
-        pairInputsBox.classList.remove('hidden');
-        btnTogglePair.textContent = 'Hide Connection Box';
-      } else {
-        pairInputsBox.classList.add('hidden');
-        btnTogglePair.textContent = '+ Connect Another PC / Change IP';
-      }
-    });
-  }
-
   // Pair from Dashboard
   const btnScanQr = document.getElementById('btn-scan-qr');
   if (btnScanQr) {
@@ -110,22 +94,6 @@ function setupDashboardActions() {
         window.Android.startQrScan();
       } else {
         showToast('Camera scanner unavailable');
-      }
-    });
-  }
-
-  // Sync State with PC
-  const btnSyncState = document.getElementById('btn-sync-state');
-  if (btnSyncState) {
-    btnSyncState.addEventListener('click', () => {
-      const ip = (document.getElementById('dash-pc-ip')?.value || '').trim();
-      if (!ip) {
-        showToast('Enter PC IP Address first');
-        return;
-      }
-      showToast('Syncing with PC at ' + ip + '...');
-      if (window.Android && window.Android.checkPairStatus) {
-        window.Android.checkPairStatus(ip, 58820, '_onManualSyncResult');
       }
     });
   }
@@ -187,38 +155,6 @@ function setupDashboardActions() {
   });
 }
 
-// Global Pair Request
-function doSendPairRequest(ip, pin) {
-  if (window.Android && window.Android.sendPairRequest) {
-    const deviceName = (window.Android.getDeviceName ? window.Android.getDeviceName() : 'Android Companion');
-    window.Android.sendPairRequest(ip, 58820, pin, deviceName, 'onPairResult');
-  } else {
-    showToast('Native pairing not supported');
-  }
-}
-
-// Global Callback for Pairing Result
-window.onPairResult = function(success, data, error) {
-  if (success && data) {
-    try {
-      if (typeof data === 'string') data = data.replace(/^\uFEFF/, '').trim();
-      const res = (typeof data === 'string') ? JSON.parse(data) : data;
-      if (res.status === 'paired' && res.secret) {
-        const ip = document.getElementById('dash-pc-ip')?.value?.trim() || AppState.pairedPC?.ip || '';
-        savePairedPC(res.pcName || 'Locker PC', ip, res.secret);
-        showToast('Successfully paired with ' + (res.pcName || 'PC') + '!');
-        updatePCUI();
-      } else {
-        showToast('Pairing: ' + (res.status || 'unknown status'));
-      }
-    } catch (e) {
-      showToast('Pairing response error: ' + (e.message || 'invalid format'));
-    }
-  } else {
-    showToast('Pairing failed: ' + (error || 'PIN incorrect or PC unreachable'));
-  }
-};
-
 // Global Callback for Ping
 window.onPingResult = function(success, data, error) {
   if (success) {
@@ -233,44 +169,6 @@ window.onPingResult = function(success, data, error) {
 // The secret is only handed over once, during PIN pairing. If this phone lost it, it has to pair again.
 window._onStartupAutoCheck = function(success, data, error) {
   // nothing to sync: the native side keeps the stored secret and refreshes the PC name/IP itself
-};
-
-// Check-before-pair Callback
-window._onCheckPairBeforePair = function(success, data, error) {
-  if (!success) {
-    showToast('PC unreachable: ' + (error || 'Check PC IP'));
-    return;
-  }
-  try {
-    const res = (typeof data === 'string') ? JSON.parse(data) : data;
-    if (res.paired && res.authenticated) {
-      showToast('Already paired with ' + (res.pcName || 'PC'));
-    } else {
-      showToast('Enter the 6-digit PIN shown on PC (Pair New Phone)');
-    }
-  } catch (_) {
-    showToast('Enter the 6-digit PIN shown on PC');
-  }
-};
-
-// Manual Sync Callback
-window._onManualSyncResult = function(success, data, error) {
-  if (success && data) {
-    try {
-      const res = (typeof data === 'string') ? JSON.parse(data) : data;
-      if (res.paired && res.authenticated) {
-        showToast('Synced! Paired with ' + (res.pcName || 'PC'));
-      } else if (res.paired) {
-        showToast('PC is paired, but not verified for this phone. Use "Pair New Phone" on the PC and enter the PIN.');
-      } else {
-        showToast('PC is online but not paired with this phone. Enter PIN.');
-      }
-    } catch (_) {
-      showToast('Sync completed');
-    }
-  } else {
-    showToast('Sync failed: ' + (error || 'Check PC IP'));
-  }
 };
 
 // Biometric Prompt Trigger
@@ -322,46 +220,26 @@ function savePairedPC(name, ip) {
   updatePCUI();
 }
 
-function updateHero() {
-  const hero = document.getElementById('hero');
-  const t = document.getElementById('hero-title');
-  const sub = document.getElementById('hero-sub');
-  if (!hero) return;
-  if (AppState.pairedPC) {
-    hero.classList.add('connected');
-    if (t) t.textContent = AppState.pairedPC.name || 'Locker PC';
-    if (sub) sub.textContent = 'Linked';
-  } else {
-    hero.classList.remove('connected');
-    if (t) t.textContent = 'Not connected';
-    if (sub) sub.textContent = 'Scan the QR code on your PC to pair';
-  }
-}
-
 function updatePCUI() {
-  updateHero();
   const pairedCard = document.getElementById('paired-hero-card');
   const nameEl = document.getElementById('pc-name-display');
   const ipEl = document.getElementById('pc-ip-display');
-  const btnTogglePair = document.getElementById('btn-toggle-pair-box');
-  const pairInputsBox = document.getElementById('pair-inputs-box');
-  
+
   if (AppState.pairedPC) {
+    document.body.classList.remove('unpaired');
+    document.body.classList.add('paired');
     if (pairedCard) pairedCard.classList.remove('hidden');
     if (nameEl) nameEl.textContent = AppState.pairedPC.name || 'Locker PC';
-    if (ipEl) ipEl.textContent = (AppState.pairedPC.ip || '192.168.0.100') + ' • Paired & Active';
-    
-    // Strict requirement: HIDE pairing inputs when connected!
-    if (pairInputsBox) pairInputsBox.classList.add('hidden');
-    if (btnTogglePair) {
-      btnTogglePair.classList.remove('hidden');
-      btnTogglePair.textContent = '+ Connect Another PC / Change IP';
-    }
+    if (ipEl) ipEl.textContent = (AppState.pairedPC.ip || '192.168.0.100') + ' \u2022 Paired & Active';
   } else {
+    // Not paired: whole app resets to the full-screen scan page
+    document.body.classList.remove('paired');
+    document.body.classList.add('unpaired');
     if (pairedCard) pairedCard.classList.add('hidden');
-    // Not paired: show pairing box directly
-    if (pairInputsBox) pairInputsBox.classList.remove('hidden');
-    if (btnTogglePair) btnTogglePair.classList.add('hidden');
+    hideIncomingAuthBanner();
+    // back to the Key tab so next pairing starts clean
+    document.querySelectorAll('.nav-btn').forEach(b => b.classList.toggle('active', b.getAttribute('data-tab') === 'tab-dashboard'));
+    document.querySelectorAll('.tab-pane').forEach(p => p.classList.toggle('active', p.id === 'tab-dashboard'));
   }
 }
 

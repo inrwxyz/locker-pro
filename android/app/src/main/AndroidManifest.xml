@@ -50,12 +50,10 @@
             android:turnScreenOn="true"
             android:theme="@style/Theme.LockerCompanion.Transparent" />
 
-        <activity
-            android:name=".PortraitCaptureActivity"
-            android:screenOrientation="portrait"
-            android:stateNotNeeded="true"
-            android:theme="@style/zxing_CaptureTheme"
-            android:windowSoftInputMode="stateAlwaysHidden" />
+        <!-- Pre-download Google code scanner module so first scan opens instantly -->
+        <meta-data
+            android:name="com.google.mlkit.vision.DEPENDENCIES"
+            android:value="barcode_ui" />
 
         <service
             android:name=".CompanionListenerService"

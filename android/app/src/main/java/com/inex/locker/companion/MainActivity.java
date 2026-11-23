@@ -24,8 +24,10 @@ import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.fragment.app.FragmentActivity;
 
-import com.journeyapps.barcodescanner.ScanContract;
-import com.journeyapps.barcodescanner.ScanOptions;
+import com.google.mlkit.vision.barcode.common.Barcode;
+import com.google.mlkit.vision.codescanner.GmsBarcodeScanner;
+import com.google.mlkit.vision.codescanner.GmsBarcodeScannerOptions;
+import com.google.mlkit.vision.codescanner.GmsBarcodeScanning;
 
 public class MainActivity extends FragmentActivity {
 
@@ -34,31 +36,30 @@ public class MainActivity extends FragmentActivity {
     private WebView mWebView;
     private WebAppInterface mBridge;
 
-    private final ActivityResultLauncher<ScanOptions> mBarcodeLauncher = registerForActivityResult(
-        new ScanContract(),
-        result -> {
-            if (result.getContents() == null) {
+    // Google code scanner (same scan UI as other Inex apps). No camera permission needed.
+    public void startQrScanner() {
+        GmsBarcodeScannerOptions options = new GmsBarcodeScannerOptions.Builder()
+            .setBarcodeFormats(Barcode.FORMAT_QR_CODE)
+            .build();
+        GmsBarcodeScanner scanner = GmsBarcodeScanning.getClient(this, options);
+        scanner.startScan()
+            .addOnSuccessListener(barcode -> {
+                String scanned = barcode.getRawValue();
+                if (mBridge != null && scanned != null) {
+                    mBridge.handleScannedQr(scanned);
+                }
+            })
+            .addOnCanceledListener(() -> {
                 if (mWebView != null) {
                     mWebView.evaluateJavascript("if (window.onQrScanCancelled) window.onQrScanCancelled();", null);
                 }
-            } else {
-                String scanned = result.getContents();
-                if (mBridge != null) {
-                    mBridge.handleScannedQr(scanned);
+            })
+            .addOnFailureListener(e -> {
+                if (mWebView != null) {
+                    String msg = org.json.JSONObject.quote("Scanner error: " + (e.getMessage() != null ? e.getMessage() : "try again"));
+                    mWebView.evaluateJavascript("if (window.onPairError) window.onPairError(" + msg + ");", null);
                 }
-            }
-        }
-    );
-
-    public void startQrScanner() {
-        ScanOptions options = new ScanOptions();
-        options.setPrompt("Scan Locker Pro QR Code on PC Monitor");
-        options.setBeepEnabled(true);
-        options.setOrientationLocked(true);
-        options.setCaptureActivity(PortraitCaptureActivity.class);
-        options.setBarcodeImageEnabled(false);
-        options.setDesiredBarcodeFormats(ScanOptions.QR_CODE);
-        mBarcodeLauncher.launch(options);
+            });
     }
 
     @Override

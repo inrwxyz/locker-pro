@@ -7,7 +7,17 @@
   <title>Locker Companion</title>
   <link rel="stylesheet" href="style.css">
 </head>
-<body>
+<body class="unpaired">
+
+  <!-- NOT CONNECTED: full-screen pairing (app is unusable without a PC) -->
+  <section id="onboarding" class="onboarding">
+    <div class="ob-inner">
+      <span class="ob-logo"><img src="logo.png" alt="Locker"></span>
+      <h1 class="ob-title">Locker Key</h1>
+      <p class="ob-desc">On your PC open Locker Pro, Phone Link, and scan the QR code.</p>
+      <button id="btn-scan-qr" class="btn btn-primary btn-block btn-lg">Scan PC QR Code</button>
+    </div>
+  </section>
 
   <header class="app-header">
     <span class="brand-logo"><img src="logo.png" alt="Locker"></span>
@@ -54,35 +64,6 @@
         <div class="card-footer-actions">
           <button id="btn-ping-pc" class="btn btn-primary">Test connection</button>
           <button id="btn-unpair-dash" class="btn btn-ghost">Disconnect</button>
-        </div>
-      </div>
-
-      <div id="pair-accordion-container">
-        <button id="btn-toggle-pair-box" class="btn btn-outline btn-block hidden">
-          + Connect Another PC / Change IP
-        </button>
-
-        <!-- Pairing -->
-        <div id="pair-inputs-box" class="card">
-          <h2 class="card-title">Pair with your PC</h2>
-          <p class="card-desc">Scan the QR code shown in Locker Pro.</p>
-
-          <ol class="pair-steps-box">
-            <li class="step-line">Open <strong>Locker Pro</strong> on your PC and go to <strong>Phone Link</strong></li>
-            <li class="step-line">Choose <strong>Pair New Phone</strong> to show the code</li>
-            <li class="step-line">Tap the button below and scan it</li>
-          </ol>
-
-          <button id="btn-scan-qr" class="btn btn-primary btn-block btn-lg">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
-              <path d="M3 7V5a2 2 0 0 1 2-2h2"/>
-              <path d="M17 3h2a2 2 0 0 1 2 2v2"/>
-              <path d="M21 17v2a2 2 0 0 1-2 2h-2"/>
-              <path d="M7 21H5a2 2 0 0 1-2-2v-2"/>
-              <line x1="7" y1="12" x2="17" y2="12"/>
-            </svg>
-            Scan QR code
-          </button>
         </div>
       </div>
 
