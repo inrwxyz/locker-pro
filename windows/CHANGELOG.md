@@ -2,7 +2,8 @@
 
 ## 2.1.0
 
-- Redesigned 3D chrome biometric lock emblem: removed diagonal slash artifacts, clarified the fingerprint texture, balanced black borders, and introduced anti-aliased squircle rounded corners.
+- Restored original clean and minimal application logos and `.ico` files across Windows Manager, Installer, and Uninstaller.
+- Added bidirectional PC presence notifications to companion phone: sends online handshake on listener start/pairing and offline signal on exit/shutdown.
 - Modernized and refreshed UI layout across the Manager, Installer, Uninstaller, Guard popup, and toast chips.
 - Hardened the build script pipeline with automated cache purges to ensure instant reflection of compiled XAML modifications.
 

@@ -2,8 +2,11 @@
 
 ## 2.1.0
 
-- Fully synced companion application branding, webview assets, and launcher icons (adaptive foreground, Android 13+ themed monochrome, and legacy round/squircle mipmaps) with the redesigned 3D biometric lock emblem.
-- Bumped companion app release version to `2.1.0`.
+- Restored original minimal and clean logo/icon branding across all mipmaps and web assets.
+- Fixed Android 14/15/16 background crash by safely wrapping `startForeground(...)` in try-catch to prevent `ForegroundServiceStartNotAllowedException`.
+- Migrated foreground service type from `dataSync` to `connectedDevice` (`FOREGROUND_SERVICE_CONNECTED_DEVICE`).
+- Added dynamic Phone Link-style connection presence: "Connected to Locker PC" notification only appears when PC is active, and automatically dismisses when PC shuts down or disconnects.
+- Added battery optimization ignore flow (`REQUEST_IGNORE_BATTERY_OPTIMIZATIONS`) to maintain reliable local Wi-Fi socket listening in Doze mode.
 
 ## 2.0.0
 

@@ -6,6 +6,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.net.wifi.WifiManager;
 import android.os.Build;
+import android.os.PowerManager;
 import android.os.VibrationEffect;
 import android.os.Vibrator;
 import android.webkit.JavascriptInterface;
@@ -262,6 +263,22 @@ public class WebAppInterface {
             mActivity.startForegroundService(intent);
         } else {
             mActivity.startService(intent);
+        }
+    }
+
+    @JavascriptInterface
+    public boolean isBatteryOptimizationIgnored() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            PowerManager pm = (PowerManager) mActivity.getSystemService(Context.POWER_SERVICE);
+            return pm != null && pm.isIgnoringBatteryOptimizations(mActivity.getPackageName());
+        }
+        return true;
+    }
+
+    @JavascriptInterface
+    public void requestIgnoreBatteryOptimizations() {
+        if (mActivity instanceof MainActivity) {
+            ((MainActivity) mActivity).requestIgnoreBatteryOptimizations();
         }
     }
 

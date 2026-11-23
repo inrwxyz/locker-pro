@@ -222,6 +222,7 @@ public partial class App : Application
         _guardServer = new GuardServer(_guardHost.Handle);
         _guardServer.Start();
 
+        SessionEnding += (s, ev) => PhoneCompanionService.StopListener();
         PhoneCompanionService.StartListener();
     }
 

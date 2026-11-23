@@ -7,6 +7,7 @@ import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.ServiceInfo;
 import android.os.Build;
 import android.os.IBinder;
 import androidx.core.app.NotificationCompat;
@@ -40,6 +41,10 @@ public class CompanionListenerService extends Service {
     private static String sPendingPub = "";            // enroll: new public key (base64)
     private static String sPendingFailReason = "";
     private static final java.util.LinkedHashSet<String> sSeenNonces = new java.util.LinkedHashSet<>();
+    private static volatile boolean sIsPcConnected = false;
+    private static volatile long sLastPcHeartbeatMs = 0;
+    private static volatile String sConnectedPcName = "Locker PC";
+    private Thread mPresenceWatchdogThread = null;
     private ServerSocket mServerSocket;
     private boolean mIsRunning = false;
 
@@ -203,8 +208,31 @@ public class CompanionListenerService extends Service {
         super.onCreate();
         sInstance = this;
         createNotificationChannels();
-        startForeground(SERVICE_NOTIFICATION_ID, buildForegroundNotification());
+
+        // 1) Safe startForeground (try-catch wrapped to prevent ForegroundServiceStartNotAllowedException on Android 14/15/16)
+        try {
+            Notification notif = buildForegroundNotification(sIsPcConnected, sConnectedPcName);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                startForeground(SERVICE_NOTIFICATION_ID, notif, ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE);
+            } else {
+                startForeground(SERVICE_NOTIFICATION_ID, notif);
+            }
+            // If PC is not connected yet, dismiss notification so phone stays quiet in background without dangling notifications
+            if (!sIsPcConnected) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                    stopForeground(Service.STOP_FOREGROUND_REMOVE);
+                } else {
+                    stopForeground(true);
+                }
+                NotificationManager nm = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+                if (nm != null) nm.cancel(SERVICE_NOTIFICATION_ID);
+            }
+        } catch (Exception e) {
+            android.util.Log.w("CompanionService", "Safe startForeground suppressed: " + e.getMessage());
+        }
+
         startListening();
+        startPresenceWatchdog();
     }
 
     private void createNotificationChannels() {
@@ -213,10 +241,11 @@ public class CompanionListenerService extends Service {
             if (nm != null) {
                 NotificationChannel serviceChannel = new NotificationChannel(
                         CHANNEL_ID,
-                        "Locker Companion Service",
+                        "Locker Companion Connection",
                         NotificationManager.IMPORTANCE_LOW
                 );
-                serviceChannel.setDescription("Keeps phone connected to Locker PC");
+                serviceChannel.setDescription("Shows connection status with Locker PC");
+                serviceChannel.setShowBadge(false);
                 nm.createNotificationChannel(serviceChannel);
 
                 NotificationChannel alertChannel = new NotificationChannel(
@@ -232,17 +261,86 @@ public class CompanionListenerService extends Service {
         }
     }
 
-    private Notification buildForegroundNotification() {
+    private Notification buildForegroundNotification(boolean connected, String pcName) {
         Intent intent = new Intent(this, MainActivity.class);
         PendingIntent pi = PendingIntent.getActivity(this, 0, intent, PendingIntent.FLAG_IMMUTABLE);
 
+        String title = connected ? "Connected to Locker PC" : "Locker Companion Active";
+        String content = connected
+                ? ((pcName != null && !pcName.isEmpty()) ? "Connected with " + pcName + " (Biometric ready)" : "Connected to PC (Biometric ready)")
+                : "Listening for biometric unlock requests from PC";
+
         return new NotificationCompat.Builder(this, CHANNEL_ID)
-                .setContentTitle("Locker Companion Active")
-                .setContentText("Listening for biometric unlock requests from PC")
+                .setContentTitle(title)
+                .setContentText(content)
                 .setSmallIcon(android.R.drawable.ic_lock_lock)
                 .setContentIntent(pi)
                 .setOngoing(true)
+                .setPriority(NotificationCompat.PRIORITY_LOW)
                 .build();
+    }
+
+    public void updatePresenceNotification(boolean connected, String pcName) {
+        NotificationManager nm = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+        if (connected) {
+            Notification notif = buildForegroundNotification(true, pcName);
+            try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    startForeground(SERVICE_NOTIFICATION_ID, notif, ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE);
+                } else {
+                    startForeground(SERVICE_NOTIFICATION_ID, notif);
+                }
+            } catch (Exception e) {
+                if (nm != null) {
+                    nm.notify(SERVICE_NOTIFICATION_ID, notif);
+                }
+            }
+        } else {
+            try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                    stopForeground(Service.STOP_FOREGROUND_REMOVE);
+                } else {
+                    stopForeground(true);
+                }
+            } catch (Exception ignored) {}
+            if (nm != null) {
+                nm.cancel(SERVICE_NOTIFICATION_ID);
+            }
+        }
+    }
+
+    public static synchronized void setPcConnected(boolean connected, String pcName) {
+        sIsPcConnected = connected;
+        if (connected) {
+            sLastPcHeartbeatMs = System.currentTimeMillis();
+            if (pcName != null && !pcName.isEmpty()) {
+                sConnectedPcName = pcName;
+            }
+        }
+        if (sInstance != null) {
+            sInstance.updatePresenceNotification(connected, sConnectedPcName);
+        }
+    }
+
+    private void startPresenceWatchdog() {
+        if (mPresenceWatchdogThread != null && mPresenceWatchdogThread.isAlive()) return;
+        mPresenceWatchdogThread = new Thread(() -> {
+            while (mIsRunning) {
+                try {
+                    Thread.sleep(15000);
+                    if (sIsPcConnected) {
+                        long elapsed = System.currentTimeMillis() - sLastPcHeartbeatMs;
+                        if (elapsed > 75000) {
+                            setPcConnected(false, null);
+                        }
+                    }
+                } catch (InterruptedException e) {
+                    break;
+                } catch (Exception ignored) {}
+            }
+        });
+        mPresenceWatchdogThread.setName("PresenceWatchdog");
+        mPresenceWatchdogThread.start();
     }
 
     private void startListening() {
@@ -292,6 +390,7 @@ public class CompanionListenerService extends Service {
                         client.close();
                         return;
                     }
+                    setPcConnected(true, "Locker PC");
                     synchronized (CompanionListenerService.class) {
                         if (sSeenNonces.contains(nonce)) { // replayed request
                             client.close();
@@ -326,6 +425,45 @@ public class CompanionListenerService extends Service {
                         // app is NOT open: never open the dashboard, only the passkey-style prompt
                         showPasskeyPrompt(shown, actionType);
                     }
+                } else if ("pc_presence".equals(action)) {
+                    String status = obj.optString("status", "");
+                    String pcName = obj.optString("pc_name", "Locker PC");
+                    String ts = obj.optString("ts", "");
+                    String nonce = obj.optString("nonce", "");
+                    String mac = obj.optString("mac", "");
+                    String secret = PhoneAuth.loadSecret(this);
+                    long tsSec = 0;
+                    try { tsSec = Long.parseLong(ts); } catch (Exception ignored) {}
+                    long nowSec = System.currentTimeMillis() / 1000L;
+                    boolean fresh = Math.abs(nowSec - tsSec) <= 300;
+                    boolean valid = !secret.isEmpty()
+                            && PhoneAuth.isValidNonce(nonce)
+                            && fresh
+                            && PhoneAuth.verify(secret, mac, "pc_presence", status, pcName, ts, nonce);
+
+                    boolean notReplayed = false;
+                    if (valid) {
+                        synchronized (CompanionListenerService.class) {
+                            if (!sSeenNonces.contains(nonce)) {
+                                sSeenNonces.add(nonce);
+                                while (sSeenNonces.size() > 64) {
+                                    java.util.Iterator<String> it = sSeenNonces.iterator();
+                                    it.next();
+                                    it.remove();
+                                }
+                                notReplayed = true;
+                            }
+                        }
+                    }
+
+                    if (notReplayed) {
+                        if ("online".equalsIgnoreCase(status)) {
+                            setPcConnected(true, pcName);
+                        } else {
+                            setPcConnected(false, null);
+                        }
+                    }
+                    client.close();
                 } else if ("unpair".equals(action)) {
                     String ts = obj.optString("ts", "");
                     String nonce = obj.optString("nonce", "");
@@ -361,6 +499,7 @@ public class CompanionListenerService extends Service {
                         android.content.SharedPreferences sp2 = getSharedPreferences("locker_native_prefs", Context.MODE_PRIVATE);
                         sp2.edit().clear().apply();
                         BiometricKeys.deleteKey();
+                        setPcConnected(false, null);
                         if (MainActivity.sInstance != null) {
                             MainActivity.sInstance.notifyUnpairedFromPc();
                         }
@@ -427,6 +566,10 @@ public class CompanionListenerService extends Service {
     @Override
     public void onDestroy() {
         mIsRunning = false;
+        setPcConnected(false, null);
+        if (mPresenceWatchdogThread != null) {
+            try { mPresenceWatchdogThread.interrupt(); } catch (Exception ignored) {}
+        }
         try {
             if (mServerSocket != null) mServerSocket.close();
         } catch (Exception ignored) {}

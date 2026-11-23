@@ -60,6 +60,27 @@ public static class PhoneCompanionService
         DirHarden.RestrictToAdminsAndSystem(MasterConfig.ConfigDir);
         _cts = new CancellationTokenSource();
         var token = _cts.Token;
+
+        // Background presence notification & periodic keepalive to phone
+        _ = Task.Run(async () =>
+        {
+            await Task.Delay(500, token);
+            await NotifyPcPresenceAsync(true);
+
+            while (!token.IsCancellationRequested)
+            {
+                try
+                {
+                    await Task.Delay(30000, token);
+                    if (!token.IsCancellationRequested)
+                    {
+                        await NotifyPcPresenceAsync(true);
+                    }
+                }
+                catch { break; }
+            }
+        }, token);
+
         _ = Task.Run(async () =>
         {
             for (int attempt = 0; attempt < 10; attempt++)
@@ -86,6 +107,12 @@ public static class PhoneCompanionService
 
     public static void StopListener()
     {
+        try
+        {
+            var notifyTask = Task.Run(async () => await NotifyPcPresenceAsync(false));
+            notifyTask.Wait(1200);
+        }
+        catch { }
         try
         {
             _cts?.Cancel();
@@ -422,6 +449,7 @@ public static class PhoneCompanionService
         try { client.Client.Shutdown(SocketShutdown.Both); } catch { }
 
         _ = Task.Run(() => _onPairedCallback?.Invoke(info));
+        _ = Task.Run(async () => { await Task.Delay(300); await NotifyPcPresenceAsync(true); });
     }
 
     private static async Task HandlePingAsync(TcpClient client, JsonElement root, StreamWriter writer)
@@ -553,6 +581,41 @@ public static class PhoneCompanionService
                 ts = ts,
                 nonce = nonce,
                 mac = PhoneAuth.Sign(secret, "unpair", ts, nonce)
+            };
+            await writer.WriteLineAsync(JsonSerializer.Serialize(req));
+            await writer.FlushAsync();
+        }
+        catch { }
+    }
+
+    public static async Task NotifyPcPresenceAsync(bool online)
+    {
+        var settings = LockerSettings.Load();
+        if (!settings.PhoneBiometricsEnabled || settings.PairedPhone == null) return;
+        string phoneIp = settings.PairedPhone.LastIpAddress;
+        string secret = settings.PairedPhone.SharedSecretKey;
+        if (string.IsNullOrWhiteSpace(phoneIp) || string.IsNullOrEmpty(secret)) return;
+
+        try
+        {
+            using var client = new TcpClient();
+            using var cts = new CancellationTokenSource(2500);
+            await client.ConnectAsync(phoneIp, PhonePort, cts.Token);
+            using var stream = client.GetStream();
+            using var writer = new StreamWriter(stream, Utf8NoBom) { AutoFlush = true };
+
+            string ts = DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString();
+            string nonce = PhoneAuth.NewNonce();
+            string statusStr = online ? "online" : "offline";
+            string pcName = Environment.MachineName;
+            var req = new
+            {
+                action = "pc_presence",
+                status = statusStr,
+                pc_name = pcName,
+                ts = ts,
+                nonce = nonce,
+                mac = PhoneAuth.Sign(secret, "pc_presence", statusStr, pcName, ts, nonce)
             };
             await writer.WriteLineAsync(JsonSerializer.Serialize(req));
             await writer.FlushAsync();
