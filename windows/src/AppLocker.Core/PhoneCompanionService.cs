@@ -831,7 +831,10 @@ public static class PhoneCompanionService
             reply.Approved = true;
             reply.AuthType = CleanAuthType(rawType);
             if (PhoneAuth.TryConsume(nonce, target, actionType))
-                RaiseApproved(target, reply.AuthType, actionType);
+            {
+                LastAuthType = reply.AuthType;
+                OnBiometricApproved?.Invoke(target, reply.AuthType);
+            }
             return reply;
         }
         catch

@@ -177,6 +177,11 @@ public static class InexIslandBridge
     private static int _heartbeatGen;
     private static readonly object HeartbeatGate = new();
 
+    // Deduplication guard for unlock events: prevents back-to-back duplicate signals for the same target
+    private static string _lastUnlockTarget = "";
+    private static long _lastUnlockTimeMs;
+    private static readonly object UnlockGate = new();
+
     private static void StartHeartbeat(string target)
     {
         lock (HeartbeatGate)
@@ -207,6 +212,11 @@ public static class InexIslandBridge
     // Call these from the locker:
     public static void NotifyPrompt(string target)
     {
+        lock (UnlockGate)
+        {
+            _lastUnlockTarget = "";
+            _lastUnlockTimeMs = 0;
+        }
         StopHeartbeat();
         SendEvent("locker_prompt", "locked", target);
         StartHeartbeat(target); // popup is open -> keep the island status alive until it closes
@@ -217,11 +227,27 @@ public static class InexIslandBridge
     public static void NotifyUnlock(string type, string target)
     {
         StopHeartbeat();
+        long now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        lock (UnlockGate)
+        {
+            if (string.Equals(_lastUnlockTarget, target, StringComparison.OrdinalIgnoreCase) && (now - _lastUnlockTimeMs) < 2500)
+            {
+                Log($"DEDUP locker_unlock '{target}' ignored ({now - _lastUnlockTimeMs} ms)");
+                return;
+            }
+            _lastUnlockTarget = target ?? "";
+            _lastUnlockTimeMs = now;
+        }
         SendEvent("locker_unlock", type, target);
     }
 
     public static void NotifyLock(string target, string type = "lock")
     {
+        lock (UnlockGate)
+        {
+            _lastUnlockTarget = "";
+            _lastUnlockTimeMs = 0;
+        }
         StopHeartbeat();
         SendEvent("locker_lock", type, target);
     }
@@ -234,6 +260,11 @@ public static class InexIslandBridge
 
     public static void NotifyCancel(string target = "")
     {
+        lock (UnlockGate)
+        {
+            _lastUnlockTarget = "";
+            _lastUnlockTimeMs = 0;
+        }
         StopHeartbeat();
         SendEvent("locker_cancel", "cancel", target);
     }
