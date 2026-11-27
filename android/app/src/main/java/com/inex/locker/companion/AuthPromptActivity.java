@@ -20,12 +20,24 @@ public class AuthPromptActivity extends FragmentActivity {
 
     public static final String EXTRA_TARGET = "target";
     public static final String EXTRA_ACTION_TYPE = "action_type";
+    public static final String EXTRA_NONCE = "nonce";
 
+    private static volatile AuthPromptActivity sActive = null;
     private boolean mPrompting = false;
+    private String mActiveNonce = "";
+
+    public static void finishIfNonce(String nonce) {
+        AuthPromptActivity act = sActive;
+        if (act == null) return;
+        if (nonce == null || nonce.isEmpty() || nonce.equals(act.mActiveNonce)) {
+            act.runOnUiThread(act::closeSilently);
+        }
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        sActive = this;
 
         // show over the lock screen so the prompt appears even when the phone is locked
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
@@ -44,7 +56,19 @@ public class AuthPromptActivity extends FragmentActivity {
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
         setIntent(intent);
+        String nextNonce = intent != null ? intent.getStringExtra(EXTRA_NONCE) : null;
+        if (nextNonce != null && !nextNonce.equals(mActiveNonce)) {
+            mPrompting = false;
+        }
         showPrompt(intent);
+    }
+
+    @Override
+    protected void onDestroy() {
+        if (sActive == this) {
+            sActive = null;
+        }
+        super.onDestroy();
     }
 
     private void showPrompt(Intent intent) {
@@ -55,6 +79,9 @@ public class AuthPromptActivity extends FragmentActivity {
             closeSilently();
             return;
         }
+
+        mActiveNonce = intent != null ? intent.getStringExtra(EXTRA_NONCE) : "";
+        if (mActiveNonce == null) mActiveNonce = "";
 
         String target = intent != null ? intent.getStringExtra(EXTRA_TARGET) : null;
         if (target == null || target.isEmpty()) target = CompanionListenerService.getPendingTarget();

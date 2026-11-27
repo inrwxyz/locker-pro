@@ -232,8 +232,9 @@ public class AppGuard : IDisposable
         return false;
     }
 
-    // Debug log: C:\ProgramData\AppLocker\guard.log
+    // Debug log: C:\ProgramData\AppLocker\guard.log (capped at 256 KB)
     private static readonly object LogGate = new();
+    private const long MaxGuardLogBytes = 256 * 1024;
     private static void Log(string msg)
     {
         try
@@ -241,7 +242,10 @@ public class AppGuard : IDisposable
             lock (LogGate)
             {
                 Directory.CreateDirectory(MasterConfig.ConfigDir);
-                File.AppendAllText(Path.Combine(MasterConfig.ConfigDir, "guard.log"),
+                string logPath = Path.Combine(MasterConfig.ConfigDir, "guard.log");
+                if (File.Exists(logPath) && new FileInfo(logPath).Length > MaxGuardLogBytes)
+                    File.Delete(logPath);
+                File.AppendAllText(logPath,
                     DateTime.Now.ToString("HH:mm:ss") + " " + msg + Environment.NewLine);
             }
         }

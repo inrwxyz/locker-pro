@@ -703,7 +703,7 @@
                                                             <ColumnDefinition Width="Auto"/>
                                                         </Grid.ColumnDefinitions>
                                                         <TextBlock Text="Version" Foreground="{StaticResource TextDim}" FontSize="12"/>
-                                                        <TextBlock Grid.Column="1" Text="Locker PRO v2.1.0" Foreground="{StaticResource TextMain}" FontSize="12" FontWeight="SemiBold"/>
+                                                        <TextBlock Grid.Column="1" Text="Locker PRO v2.1.1" Foreground="{StaticResource TextMain}" FontSize="12" FontWeight="SemiBold"/>
                                                     </Grid>
                                                 </Border>
 

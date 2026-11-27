@@ -1,6 +1,13 @@
 .DS_Store
 Thumbs.db
 *.log
+*.tmp
+*.bak
+
+# IDE / editors
+.vs/
+.vscode/
+.idea/
 
 # Secrets, keys & environment (never commit)
 .env

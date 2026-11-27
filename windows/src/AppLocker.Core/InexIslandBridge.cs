@@ -238,7 +238,7 @@ public static class InexIslandBridge
             _lastUnlockTarget = target ?? "";
             _lastUnlockTimeMs = now;
         }
-        SendEvent("locker_unlock", type, target);
+        SendEvent("locker_unlock", type, target ?? "");
     }
 
     public static void NotifyLock(string target, string type = "lock")

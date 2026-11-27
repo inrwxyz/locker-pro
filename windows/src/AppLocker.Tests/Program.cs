@@ -15,16 +15,14 @@ class Program
         }
 
         Console.WriteLine($"Phone: {settings.PairedPhone.DeviceName} ({settings.PairedPhone.LastIpAddress})");
-        Console.WriteLine($"Secret: {settings.PairedPhone.SharedSecretKey}");
-
-        byte[]? key = MasterConfig.GetBiometricVaultKey(settings.PairedPhone.SharedSecretKey);
-        if (key != null)
+        var v2 = MasterConfig.LoadBiometricVaultV2();
+        if (v2 != null)
         {
-            Console.WriteLine($"SUCCESS: Vault decrypted! Master key length: {key.Length} bytes");
+            Console.WriteLine($"SUCCESS: Biometric Vault V2 present (deviceId={v2.DeviceId})");
         }
         else
         {
-            Console.WriteLine("FAIL: GetBiometricVaultKey returned NULL!");
+            Console.WriteLine("FAIL: Biometric Vault V2 is not linked yet.");
         }
 
         Console.WriteLine("Checking phone reachability on port 58821...");

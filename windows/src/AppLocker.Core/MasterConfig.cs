@@ -69,7 +69,6 @@ public static class MasterConfig
         Directory.CreateDirectory(ConfigDir);
 
         byte[] master = RandomNumberGenerator.GetBytes(32);
-
         byte[] pwSalt = Crypto.NewSalt();
         byte[] pwKey = Crypto.DeriveKey(password, pwSalt);
 
@@ -77,16 +76,24 @@ public static class MasterConfig
         byte[] recSalt = Crypto.NewSalt();
         byte[] recKey = Crypto.DeriveKey(recoveryText, recSalt);
 
-        var data = new MasterData
+        try
         {
-            PasswordSalt = Convert.ToBase64String(pwSalt),
-            WrappedByPassword = Convert.ToBase64String(KeyWrap.Wrap(master, pwKey)),
-            RecoverySalt = Convert.ToBase64String(recSalt),
-            WrappedByRecovery = Convert.ToBase64String(KeyWrap.Wrap(master, recKey))
-        };
-        Save(data);
+            var data = new MasterData
+            {
+                PasswordSalt = Convert.ToBase64String(pwSalt),
+                WrappedByPassword = Convert.ToBase64String(KeyWrap.Wrap(master, pwKey)),
+                RecoverySalt = Convert.ToBase64String(recSalt),
+                WrappedByRecovery = Convert.ToBase64String(KeyWrap.Wrap(master, recKey))
+            };
+            Save(data);
+        }
+        finally
+        {
+            CryptographicOperations.ZeroMemory(master);
+            CryptographicOperations.ZeroMemory(pwKey);
+            CryptographicOperations.ZeroMemory(recKey);
+        }
 
-        CryptographicOperations.ZeroMemory(master);
         return recoveryText;
     }
 
@@ -143,35 +150,6 @@ public static class MasterConfig
         catch { return null; }
     }
 
-    [Obsolete("Insecure legacy vault (key sat next to the data on the PC). Use SaveBiometricVaultV2.")]
-    public static void SaveBiometricVault(byte[] masterKey, string sharedSecret)
-    {
-        try
-        {
-            Directory.CreateDirectory(ConfigDir);
-            byte[] keyBytes = SHA256.HashData(Encoding.UTF8.GetBytes(sharedSecret));
-            byte[] wrapped = KeyWrap.Wrap(masterKey, keyBytes);
-            File.WriteAllBytes(BiometricVaultPath, wrapped);
-        }
-        catch { }
-    }
-
-    [Obsolete("Insecure legacy vault. Use PhoneCompanionService.RequestVaultKeyAsync.")]
-    public static byte[]? GetBiometricVaultKey(string sharedSecret)
-    {
-        try
-        {
-            if (!File.Exists(BiometricVaultPath)) return null;
-            byte[] wrapped = File.ReadAllBytes(BiometricVaultPath);
-            byte[] keyBytes = SHA256.HashData(Encoding.UTF8.GetBytes(sharedSecret));
-            return KeyWrap.Unwrap(wrapped, keyBytes);
-        }
-        catch
-        {
-            return null;
-        }
-    }
-
     public static void DeleteBiometricVault()
     {
         try { if (File.Exists(BiometricVaultPath)) File.Delete(BiometricVaultPath); } catch { }
@@ -191,6 +169,7 @@ public static class MasterConfig
             return key;
         }
         catch (CryptographicException) { return null; }
+        finally { CryptographicOperations.ZeroMemory(pwKey); }
     }
 
     public static byte[]? GetKeyWithRecovery(string recoveryText)
@@ -199,6 +178,7 @@ public static class MasterConfig
         byte[] recKey = Crypto.DeriveKey(Normalize(recoveryText), Convert.FromBase64String(d.RecoverySalt));
         try { return KeyWrap.Unwrap(Convert.FromBase64String(d.WrappedByRecovery), recKey); }
         catch (CryptographicException) { return null; }
+        finally { CryptographicOperations.ZeroMemory(recKey); }
     }
 
     // Password change: shob folder er jonno ekbar-i change hoy
@@ -207,15 +187,21 @@ public static class MasterConfig
         byte[]? master = GetKeyWithPassword(oldPassword);
         if (master == null) return false;
 
-        var d = Load();
         byte[] newSalt = Crypto.NewSalt();
         byte[] newKey = Crypto.DeriveKey(newPassword, newSalt);
-        d.PasswordSalt = Convert.ToBase64String(newSalt);
-        d.WrappedByPassword = Convert.ToBase64String(KeyWrap.Wrap(master, newKey));
-        Save(d);
-
-        CryptographicOperations.ZeroMemory(master);
-        return true;
+        try
+        {
+            var d = Load();
+            d.PasswordSalt = Convert.ToBase64String(newSalt);
+            d.WrappedByPassword = Convert.ToBase64String(KeyWrap.Wrap(master, newKey));
+            Save(d);
+            return true;
+        }
+        finally
+        {
+            CryptographicOperations.ZeroMemory(master);
+            CryptographicOperations.ZeroMemory(newKey);
+        }
     }
 
     // Password bhule gele: recovery key diye notun password set
@@ -224,15 +210,21 @@ public static class MasterConfig
         byte[]? master = GetKeyWithRecovery(recoveryText);
         if (master == null) return false;
 
-        var d = Load();
         byte[] newSalt = Crypto.NewSalt();
         byte[] newKey = Crypto.DeriveKey(newPassword, newSalt);
-        d.PasswordSalt = Convert.ToBase64String(newSalt);
-        d.WrappedByPassword = Convert.ToBase64String(KeyWrap.Wrap(master, newKey));
-        Save(d);
-
-        CryptographicOperations.ZeroMemory(master);
-        return true;
+        try
+        {
+            var d = Load();
+            d.PasswordSalt = Convert.ToBase64String(newSalt);
+            d.WrappedByPassword = Convert.ToBase64String(KeyWrap.Wrap(master, newKey));
+            Save(d);
+            return true;
+        }
+        finally
+        {
+            CryptographicOperations.ZeroMemory(master);
+            CryptographicOperations.ZeroMemory(newKey);
+        }
     }
 
     // Generates a new one-time recovery key (invalidating the previous one) after verifying current password.
@@ -241,12 +233,11 @@ public static class MasterConfig
         byte[]? master = GetKeyWithPassword(currentPassword);
         if (master == null) return null;
 
+        byte[] recSalt = Crypto.NewSalt();
+        string recoveryText = FormatRecovery(RandomNumberGenerator.GetBytes(20));
+        byte[] recKey = Crypto.DeriveKey(Normalize(recoveryText), recSalt);
         try
         {
-            string recoveryText = FormatRecovery(RandomNumberGenerator.GetBytes(20));
-            byte[] recSalt = Crypto.NewSalt();
-            byte[] recKey = Crypto.DeriveKey(Normalize(recoveryText), recSalt);
-
             var d = Load();
             d.RecoverySalt = Convert.ToBase64String(recSalt);
             d.WrappedByRecovery = Convert.ToBase64String(KeyWrap.Wrap(master, recKey));
@@ -256,6 +247,7 @@ public static class MasterConfig
         finally
         {
             CryptographicOperations.ZeroMemory(master);
+            CryptographicOperations.ZeroMemory(recKey);
         }
     }
 

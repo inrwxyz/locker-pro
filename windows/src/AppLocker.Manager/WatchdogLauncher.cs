@@ -58,7 +58,7 @@ public static class WatchdogLauncher
             {
                 UseShellExecute = true,
                 WorkingDirectory = Path.GetDirectoryName(exe)!
-            });
+            })?.Dispose();
         }
         catch { }
     }

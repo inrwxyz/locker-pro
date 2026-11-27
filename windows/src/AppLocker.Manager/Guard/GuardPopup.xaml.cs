@@ -1,7 +1,5 @@
-using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Threading;
@@ -11,19 +9,13 @@ namespace AppLocker.Manager.Guard;
 
 public partial class GuardPopup : Window
 {
-    private const int GWL_EXSTYLE = -20;
-    private const int WS_EX_NOACTIVATE = 0x08000000;
-    private const int WS_EX_TOOLWINDOW = 0x00000080;
-
-    [DllImport("user32.dll")] private static extern int GetWindowLong(IntPtr hWnd, int nIndex);
-    [DllImport("user32.dll")] private static extern int SetWindowLong(IntPtr hWnd, int nIndex, int value);
-
     private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromSeconds(1) };
     private TaskCompletionSource<byte[]?>? _ask;
     private bool _showPw;
     private bool _formMode;
     private bool _closing;
-    private Action<string, string>? _biometricHandler;
+    private CancellationTokenSource? _phoneCts;
+    private int _phoneAttempt;
 
     public string AuthType { get; set; } = "password";
     public bool IsLockOperation { get; set; } = false;
@@ -51,11 +43,7 @@ public partial class GuardPopup : Window
         Closed += (_, _) =>
         {
             _timer.Stop();
-            if (_biometricHandler != null)
-            {
-                PhoneCompanionService.OnBiometricApproved -= _biometricHandler;
-                _biometricHandler = null;
-            }
+            CancelPhoneAuth();
             if (_ask != null && !_ask.Task.IsCompleted)
             {
                 InexIslandBridge.NotifyCancel(ItemName.Text);
@@ -63,6 +51,16 @@ public partial class GuardPopup : Window
             _ask?.TrySetResult(null);
         };
         _timer.Tick += (_, _) => UpdateLockout();
+    }
+
+    private void CancelPhoneAuth()
+    {
+        var cts = Interlocked.Exchange(ref _phoneCts, null);
+        if (cts != null)
+        {
+            try { cts.Cancel(); } catch { }
+            try { cts.Dispose(); } catch { }
+        }
     }
 
     public Task<byte[]?> AskAsync()
@@ -74,14 +72,31 @@ public partial class GuardPopup : Window
         Activate();
         InexIslandBridge.NotifyPrompt(ItemName.Text);
 
-
-        _ = TryPhoneBiometricAuthAsync(ItemName.Text, IsLockOperation);
+        StartPhoneBiometricAttempt();
         return _ask.Task;
+    }
+
+    /// <summary>Cancels any stale attempt and pushes a fresh biometric request to the paired phone.</summary>
+    public void RetryPhoneAuth()
+    {
+        if (!_formMode || _closing || (_ask?.Task.IsCompleted ?? true)) return;
+        StartPhoneBiometricAttempt();
+    }
+
+    private void RetryPhoneBtn_Click(object sender, RoutedEventArgs e) => RetryPhoneAuth();
+
+    private void StartPhoneBiometricAttempt()
+    {
+        CancelPhoneAuth();
+        var cts = new CancellationTokenSource();
+        _phoneCts = cts;
+        int attempt = Interlocked.Increment(ref _phoneAttempt);
+        _ = TryPhoneBiometricAuthAsync(ItemName.Text, IsLockOperation, cts.Token, attempt);
     }
 
     // Fingerprint path: the phone must open RSA(U) with its fingerprint-bound key; only then the PC can open the
     // master key. No fingerprint key yet (or phone unreachable) = password, and the key is linked right after.
-    private async Task TryPhoneBiometricAuthAsync(string target, bool isLock)
+    private async Task TryPhoneBiometricAuthAsync(string target, bool isLock, CancellationToken ct, int attempt)
     {
         try
         {
@@ -93,10 +108,18 @@ public partial class GuardPopup : Window
 
             Dispatcher.Invoke(() =>
             {
+                if (attempt != _phoneAttempt || !_formMode || _closing) return;
+                RetryPhoneBtn.Visibility = Visibility.Collapsed;
                 Status.Text = "Checking phone biometrics...";
             });
 
-            var res = await PhoneCompanionService.RequestVaultKeyAsync(target, isLock, 15000);
+            var res = await PhoneCompanionService.RequestVaultKeyAsync(target, isLock, 45000, ct);
+            if (ct.IsCancellationRequested || attempt != _phoneAttempt || _closing)
+            {
+                if (res.Key != null) Array.Clear(res.Key);
+                return;
+            }
+
             if (res.Key != null)
             {
                 Dispatcher.Invoke(() =>
@@ -105,6 +128,7 @@ public partial class GuardPopup : Window
                     {
                         AuthType = !string.IsNullOrEmpty(res.AuthType) ? res.AuthType : "fingerprint";
                         LockoutTracker.RecordSuccess();
+                        RetryPhoneBtn.Visibility = Visibility.Collapsed;
                         UnlockBtn.IsEnabled = false;
                         _timer.Stop();
                         _ask.TrySetResult(res.Key);
@@ -114,15 +138,32 @@ public partial class GuardPopup : Window
                         Array.Clear(res.Key);
                     }
                 });
+                return;
             }
-            else if (res.Reason is "key_invalid" or "no_key" or "vault_mismatch")
+
+            Dispatcher.Invoke(() =>
             {
-                Dispatcher.Invoke(() =>
+                if (attempt != _phoneAttempt || !_formMode || _closing || (_ask?.Task.IsCompleted ?? true)) return;
+
+                if (res.Reason is "key_invalid" or "no_key" or "vault_mismatch")
                 {
+                    RetryPhoneBtn.Visibility = Visibility.Collapsed;
                     Status.Text = "Phone fingerprints changed. Enter Master Password to re-link";
                     PwBox.Focus();
-                });
-            }
+                }
+                else if (res.Reason != "canceled")
+                {
+                    Status.Text = res.Reason switch
+                    {
+                        "unreachable" => "Phone unreachable — enter password or retry",
+                        "wrong_wifi" => "Phone on different Wi-Fi — enter password or retry",
+                        "rejected" => "Phone prompt dismissed — enter password or retry",
+                        "timeout" => "Phone timed out — enter password or retry",
+                        _ => "Phone unavailable — enter password or retry"
+                    };
+                    RetryPhoneBtn.Visibility = Visibility.Visible;
+                }
+            });
         }
         catch { }
     }
@@ -138,6 +179,8 @@ public partial class GuardPopup : Window
     {
         _formMode = false;
         _timer.Stop();
+        CancelPhoneAuth();
+        RetryPhoneBtn.Visibility = Visibility.Collapsed;
         FormPanel.Visibility = Visibility.Collapsed;
         GlyphIcon.Visibility = Visibility.Collapsed;
         DotsPanel.Visibility = Visibility.Visible;
@@ -193,11 +236,7 @@ public partial class GuardPopup : Window
         if (_closing) return;
         _closing = true;
         _timer.Stop();
-        if (_biometricHandler != null)
-        {
-            PhoneCompanionService.OnBiometricApproved -= _biometricHandler;
-            _biometricHandler = null;
-        }
+        CancelPhoneAuth();
 
         var tcs = new TaskCompletionSource();
         var fade = new DoubleAnimation(Opacity, 0, TimeSpan.FromMilliseconds(220));
@@ -306,6 +345,8 @@ public partial class GuardPopup : Window
         PhoneCompanionService.TryAutoEnroll(key);
 
         LockoutTracker.RecordSuccess();
+        CancelPhoneAuth();
+        RetryPhoneBtn.Visibility = Visibility.Collapsed;
         UnlockBtn.IsEnabled = false;
         _timer.Stop();
         _ask?.TrySetResult(key);
@@ -313,6 +354,7 @@ public partial class GuardPopup : Window
 
     private async void CancelBtn_Click(object sender, RoutedEventArgs e)
     {
+        CancelPhoneAuth();
         InexIslandBridge.NotifyCancel(ItemName.Text);
         _ask?.TrySetResult(null);
         await CloseAsync();

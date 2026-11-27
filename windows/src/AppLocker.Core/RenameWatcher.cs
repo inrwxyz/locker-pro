@@ -32,8 +32,22 @@ public class RenameWatcher : IDisposable
         try
         {
             Log?.Invoke($"Rename detected: {e.OldName} -> {e.Name}. Reverting...");
-            Directory.Move(e.FullPath, _lockedPath);
-            Log?.Invoke("Reverted to original name.");
+            Exception? lastErr = null;
+            for (int attempt = 0; attempt < 3; attempt++)
+            {
+                try
+                {
+                    Directory.Move(e.FullPath, _lockedPath);
+                    Log?.Invoke("Reverted to original name.");
+                    return;
+                }
+                catch (Exception ex) when (attempt < 2)
+                {
+                    lastErr = ex;
+                    Thread.Sleep(80);
+                }
+            }
+            if (lastErr != null) throw lastErr;
         }
         catch (Exception ex)
         {

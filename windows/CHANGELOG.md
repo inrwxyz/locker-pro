@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.1.1
+
+- Closed the File Picker (`#32770` Open/Save/Browse dialog) guard bypass by monitoring dialog address bars via `SetWinEventHook` + UI Automation and automatically navigating unauthorized dialogs out of locked folders.
+- Eliminated Explorer guard flash/lag by switching `ExplorerWatcher` to real-time `SetWinEventHook` + `45 ms` foreground responsiveness and fixing the root-parent early-return bug in `NavigateWindowAway`.
+- Hardened Phone Link biometric unlock prompts: added fast TCP retry, immediate `auth_cancel` cancellation when closing/canceling PC prompts, accurate status + **Retry phone prompt** recovery on `GuardPopup`, and `reprompt` / `pendingTarget` dashboard recovery inside Android Companion.
+- Security, leak, and dead-code cleanup: removed legacy `AppLocker.UI`, `AppLocker.Launch`, `AppLocker.Shell` projects and `[Obsolete]` insecure vault methods; cleared derived keys/cipher buffers in RAM (`CryptographicOperations.ZeroMemory` / `Array.Clear`); bounded `guard.log` at 256 KB; disposed leaked `Process` handles; and guarded partial-encryption rollbacks in `FolderLocker.Lock`.
+
 ## 2.1.0
 
 - Restored original clean and minimal application logos and `.ico` files across Windows Manager, Installer, and Uninstaller.

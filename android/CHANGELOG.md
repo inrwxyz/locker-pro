@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.1.1
+
+- Added short wake-lock acquisition on incoming unlock prompts and clean cancellation (`auth_cancel`) syncing so missed or PC-canceled notifications clear immediately and rapid retries always alert cleanly.
+- Fixed `AuthPromptActivity` `onNewIntent` nonce reset so fresh prompt requests are never silently ignored while a previous instance is closing.
+- Added active prompt recovery on app resume (`onResume` ping sync + signed `reprompt` handshake): opening Locker Companion after dismissing or missing a heads-up prompt immediately surfaces the pending PC unlock banner for fingerprint approval.
+
 ## 2.1.0
 
 - Restored original minimal and clean logo/icon branding across all mipmaps and web assets.

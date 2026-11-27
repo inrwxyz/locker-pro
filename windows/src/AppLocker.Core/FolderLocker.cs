@@ -123,11 +123,42 @@ public static class FolderLocker
             IsOpen = true
         };
         WriteMeta(folder, meta);
-        LockRegistry.Add(folder);
 
         try
         {
             SealInternal(folder, dataKey, progress);
+            LockRegistry.Add(folder);
+        }
+        catch
+        {
+            bool anyEncrypted;
+            try
+            {
+                anyEncrypted = Directory.EnumerateFiles(folder, "*" + Ext, AllFilesOptions).Any();
+            }
+            catch
+            {
+                anyEncrypted = true;
+            }
+
+            if (anyEncrypted)
+            {
+                // Preserve wrapped data key + registry entry whenever any .aplk file exists so no data can ever be stranded.
+                try { LockRegistry.Add(folder); } catch { }
+            }
+            else
+            {
+                try
+                {
+                    AclGuard.Unprotect(folder);
+                    string mp = Path.Combine(folder, MetaName);
+                    if (File.Exists(mp)) { NormalizeAttributes(mp); File.Delete(mp); }
+                    string bp = BackupPath(folder);
+                    if (File.Exists(bp)) File.Delete(bp);
+                }
+                catch { }
+            }
+            throw;
         }
         finally
         {

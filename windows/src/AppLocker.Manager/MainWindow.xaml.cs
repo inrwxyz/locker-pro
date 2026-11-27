@@ -25,8 +25,6 @@ public partial class MainWindow : Window, IComponentConnector, IStyleConnector
 {
 	private List<AppItem>? _allApps;
 
-	private byte[]? _masterKey;
-
 	private bool _loadingSettings;
 
 
@@ -1150,7 +1148,6 @@ private void StartPhonePair_Click(object sender, RoutedEventArgs e)
 		try
 		{
 			string text = MasterConfig.Setup(password);
-			_masterKey = MasterConfig.GetKeyWithPassword(password);
 			SetupRecoveryKeyText.Text = text;
 			SetupInputPanel.Visibility = Visibility.Collapsed;
 			SetupSuccessPanel.Visibility = Visibility.Visible;

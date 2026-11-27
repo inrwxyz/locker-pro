@@ -1,6 +1,6 @@
 # Locker Pro (Windows)
 
-**Version 2.1.0** · Windows 10/11 (x64) · MIT License
+**Version 2.1.1** · Windows 10/11 (x64) · MIT License
 
 Local-first folder and app locker for Windows, with optional fingerprint unlock from your Android phone.  
 No cloud, no account, no telemetry: everything stays on your PC and local Wi-Fi.
@@ -14,7 +14,7 @@ Companion Android app: [**Locker Companion**](../android) (in this same reposito
 ### Vault Locker (Highlighted)
 > **Portable In-Place Vaults:** Encrypt any folder right where it sits (`*.locked`, AES-256-GCM) using its own separate password. Metadata (`vault.inex`) lives inside the folder itself, so you can move it to a pendrive or another drive and unlock it on any PC with Locker Pro.
 
-- **Folder Lock:** Lock folders on your PC with AES-256-GCM encryption (`*.aplk`), Windows ACL protection, and live progress feedback while locking or unlocking.
+- **Folder Lock:** Lock folders on your PC with AES-256-GCM encryption (`*.aplk`), Windows ACL protection, real-time File Explorer & File Picker (`#32770`) interception, and live progress feedback while locking or unlocking.
 - **App Lock:** Prompts for authentication before launching protected `.exe` apps.
 - **Tray App Awareness:** Apps that minimize to the system tray stay unlocked while open and relock once closed.
 - **Master Password + Recovery Key:** One Master Password protects your locked items, with a Recovery Key shown at setup for resets.

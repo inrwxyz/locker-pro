@@ -176,16 +176,21 @@ public partial class MainWindow : Window
                 CreateNoWindow = true,
                 UseShellExecute = false
             };
-            Process.Start(killPsi)?.WaitForExit(3000);
+            using var kp = Process.Start(killPsi);
+            kp?.WaitForExit(3000);
         }
         catch { }
         try
         {
-            foreach (var p in Process.GetProcessesByName("Locker")) { try { p.Kill(true); p.WaitForExit(1000); } catch { } }
-            foreach (var p in Process.GetProcessesByName("LockerGuard")) { try { p.Kill(true); p.WaitForExit(1000); } catch { } }
-            foreach (var p in Process.GetProcessesByName("AppLocker.UI")) { try { p.Kill(true); p.WaitForExit(1000); } catch { } }
-            foreach (var p in Process.GetProcessesByName("AppLocker.Guard")) { try { p.Kill(true); p.WaitForExit(1000); } catch { } }
-            foreach (var p in Process.GetProcessesByName("uninstall")) { try { p.Kill(true); p.WaitForExit(1000); } catch { } }
+            string[] procNames = { "Locker", "LockerGuard", "AppLocker.UI", "AppLocker.Guard", "uninstall" };
+            foreach (var name in procNames)
+            {
+                foreach (var p in Process.GetProcessesByName(name))
+                {
+                    try { p.Kill(true); p.WaitForExit(1000); } catch { }
+                    finally { p.Dispose(); }
+                }
+            }
         }
         catch { }
         Thread.Sleep(600);

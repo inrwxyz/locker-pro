@@ -67,6 +67,37 @@ public class MainActivity extends FragmentActivity {
         super.onResume();
         sInstance = this;
         sIsForeground = true;
+        syncPendingAuthOnResume();
+    }
+
+    private void syncPendingAuthOnResume() {
+        if (mWebView == null) return;
+        String pendingJson = CompanionListenerService.getPendingAuthJson();
+        if (pendingJson != null && !pendingJson.isEmpty()) {
+            try {
+                org.json.JSONObject p = new org.json.JSONObject(pendingJson);
+                String target = p.optString("target", "Protected Resource");
+                String actionType = p.optString("actionType", "unlock");
+                mWebView.post(() -> triggerIncomingAuth(target, false, actionType));
+                return;
+            } catch (Exception ignored) {}
+        }
+
+        if (mBridge != null) {
+            android.content.SharedPreferences sp = getSharedPreferences("locker_companion", Context.MODE_PRIVATE);
+            String ip = sp.getString("pc_ip", "");
+            if (ip != null && !ip.isEmpty() && !PhoneAuth.loadSecret(this).isEmpty()) {
+                mBridge.checkPairStatus(ip, 58820, "_onResumeSync");
+            }
+        }
+    }
+
+    public void clearIncomingAuthFromPc() {
+        runOnUiThread(() -> {
+            if (mWebView != null) {
+                mWebView.evaluateJavascript("if (window.hideIncomingAuthBanner) window.hideIncomingAuthBanner();", null);
+            }
+        });
     }
 
     @Override
@@ -87,7 +118,11 @@ public class MainActivity extends FragmentActivity {
     }
 
     public void triggerIncomingAuth(String target) {
-        triggerIncomingAuth(target, false);
+        triggerIncomingAuth(target, false, CompanionListenerService.getPendingActionType());
+    }
+
+    public void triggerIncomingAuth(String target, boolean fromNotification) {
+        triggerIncomingAuth(target, fromNotification, CompanionListenerService.getPendingActionType());
     }
 
     public void notifyUnpairedFromPc() {
@@ -98,22 +133,28 @@ public class MainActivity extends FragmentActivity {
         });
     }
 
-    public void triggerIncomingAuth(String target, boolean fromNotification) {
+    public void triggerIncomingAuth(String target, boolean fromNotification, String actionType) {
         runOnUiThread(() -> {
             final String safeTarget = (target != null && !target.isEmpty()) ? target : "Protected Resource";
+            final String safeAction = (actionType != null && !actionType.isEmpty()) ? actionType : "unlock";
 
             // Visual indicator in WebView
             if (mWebView != null) {
-                mWebView.evaluateJavascript("if (window.handleIncomingAuthPrompt) { window.handleIncomingAuthPrompt(" + org.json.JSONObject.quote(safeTarget) + "); }", null);
+                mWebView.evaluateJavascript("if (window.handleIncomingAuthPrompt) { window.handleIncomingAuthPrompt("
+                        + org.json.JSONObject.quote(safeTarget) + ", " + org.json.JSONObject.quote(safeAction) + ", false); }", null);
             }
 
+            boolean isLock = "lock".equalsIgnoreCase(safeAction);
             // Pop up native biometric dialog instantly!
-            BiometricHelper.prompt(this, "Locker Security Request", "Authorize access to: " + safeTarget, new BiometricHelper.BiometricCallback() {
+            BiometricHelper.prompt(this,
+                    isLock ? "Locker Lock Request" : "Locker Security Request",
+                    (isLock ? "Confirm locking: " : "Authorize access to: ") + safeTarget,
+                    new BiometricHelper.BiometricCallback() {
                 @Override
                 public void onSuccess(String authType) {
                     CompanionListenerService.completePendingAuth(true, authType);
                     if (mWebView != null) {
-                        mWebView.evaluateJavascript("showToast('Authorized! PC unlocked.'); if (window.hideIncomingAuthBanner) window.hideIncomingAuthBanner();", null);
+                        mWebView.evaluateJavascript("showToast('Authorized! PC updated.'); if (window.hideIncomingAuthBanner) window.hideIncomingAuthBanner();", null);
                     }
                     if (fromNotification) {
                         // Passkey style: return immediately to previous app/screen!
@@ -137,6 +178,8 @@ public class MainActivity extends FragmentActivity {
                     }
                     if (fromNotification) {
                         moveTaskToBack(true);
+                    } else {
+                        mWebView.postDelayed(() -> syncPendingAuthOnResume(), 300);
                     }
                 }
             });

@@ -158,6 +158,53 @@ public class CompanionListenerService extends Service {
         }
     }
 
+    public static synchronized String getPendingAuthJson() {
+        if (sPendingAuthSocket == null || sPendingAuthSocket.isClosed()
+                || sPendingTarget == null || sPendingNonce == null || sPendingNonce.isEmpty()) {
+            return "";
+        }
+        try {
+            JSONObject obj = new JSONObject();
+            obj.put("target", sPendingTarget);
+            obj.put("actionType", sPendingActionType != null ? sPendingActionType : "unlock");
+            obj.put("nonce", sPendingNonce);
+            return obj.toString();
+        } catch (Exception ignored) {
+            return "";
+        }
+    }
+
+    public static void cancelPendingByNonce(String nonce) {
+        if (nonce == null || nonce.isEmpty()) return;
+        Socket toClose = null;
+        synchronized (CompanionListenerService.class) {
+            if (!nonce.equals(sPendingNonce)) return;
+            toClose = sPendingAuthSocket;
+            sPendingAuthSocket = null;
+            sPendingTarget = null;
+            sPendingRawTarget = "";
+            sPendingVaultId = "";
+            sPendingNonce = "";
+            sPendingWrapped = "";
+            sPendingPub = "";
+            sPendingFailReason = "";
+            if (sPendingU != null) {
+                java.util.Arrays.fill(sPendingU, (byte) 0);
+                sPendingU = null;
+            }
+        }
+        if (toClose != null) {
+            try { toClose.close(); } catch (Exception ignored) {}
+        }
+        if (sInstance != null) {
+            sInstance.dismissNotification();
+        }
+        AuthPromptActivity.finishIfNonce(nonce);
+        if (MainActivity.sInstance != null) {
+            MainActivity.sInstance.clearIncomingAuthFromPc();
+        }
+    }
+
     /** Backup push to the PC. Carries only a MAC + the nonce of a request the PC issued, never the secret. */
     public static void notifyPcDirect(Context context, String rawTarget, String authType, String actionType, String nonce, String vaultId) {
         new Thread(() -> {
@@ -405,6 +452,7 @@ public class CompanionListenerService extends Service {
                         if (sPendingAuthSocket != null) {
                             try { sPendingAuthSocket.close(); } catch (Exception ignored) {}
                         }
+                        try { client.setSoTimeout(0); } catch (Exception ignored) {}
                         sPendingAuthSocket = client;
                         sPendingRawTarget = rawTarget;
                         sPendingVaultId = obj.optString("vaultId", "");
@@ -420,11 +468,21 @@ public class CompanionListenerService extends Service {
                     String shown = rawTarget.isEmpty() ? "Protected Resource" : rawTarget;
                     if (MainActivity.sInstance != null && MainActivity.sIsForeground) {
                         // dashboard is already on screen: prompt right there
-                        MainActivity.sInstance.triggerIncomingAuth(shown);
+                        MainActivity.sInstance.triggerIncomingAuth(shown, false, actionType);
                     } else {
-                        // app is NOT open: never open the dashboard, only the passkey-style prompt
-                        showPasskeyPrompt(shown, actionType);
+                        // app is NOT open: wake briefly and show passkey-style prompt
+                        acquireShortWakeLock();
+                        showPasskeyPrompt(shown, actionType, nonce);
                     }
+                } else if ("auth_cancel".equals(action)) {
+                    String nonce = obj.optString("nonce", "");
+                    String mac = obj.optString("mac", "");
+                    String secret = PhoneAuth.loadSecret(this);
+                    if (!secret.isEmpty() && PhoneAuth.isValidNonce(nonce)
+                            && PhoneAuth.verify(secret, mac, "auth_cancel", nonce)) {
+                        cancelPendingByNonce(nonce);
+                    }
+                    client.close();
                 } else if ("pc_presence".equals(action)) {
                     String status = obj.optString("status", "");
                     String pcName = obj.optString("pc_name", "Locker PC");
@@ -514,27 +572,42 @@ public class CompanionListenerService extends Service {
         }).start();
     }
 
+    private void acquireShortWakeLock() {
+        try {
+            android.os.PowerManager pm = (android.os.PowerManager) getSystemService(Context.POWER_SERVICE);
+            if (pm != null) {
+                android.os.PowerManager.WakeLock wl = pm.newWakeLock(
+                        android.os.PowerManager.PARTIAL_WAKE_LOCK,
+                        "LockerCompanion:AuthWake");
+                wl.acquire(4000L);
+            }
+        } catch (Exception ignored) {}
+    }
+
     /**
      * Passkey-style: a high-priority heads-up / full-screen notification whose only job is to open the
      * transparent AuthPromptActivity (system fingerprint dialog, no dashboard). Where Android allows
      * background activity starts (older versions) the dialog also pops up by itself.
      */
-    private void showPasskeyPrompt(String target, String actionType) {
+    private void showPasskeyPrompt(String target, String actionType, String nonce) {
         Intent intent = new Intent(this, AuthPromptActivity.class);
         intent.putExtra(AuthPromptActivity.EXTRA_TARGET, target);
         intent.putExtra(AuthPromptActivity.EXTRA_ACTION_TYPE, actionType);
+        intent.putExtra(AuthPromptActivity.EXTRA_NONCE, nonce);
         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK
                 | Intent.FLAG_ACTIVITY_CLEAR_TOP
                 | Intent.FLAG_ACTIVITY_NO_ANIMATION
                 | Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS);
 
-        PendingIntent pi = PendingIntent.getActivity(this, 1, intent,
+        int reqCode = (nonce != null && !nonce.isEmpty()) ? (nonce.hashCode() & 0x7FFFFFFF) : 1;
+        PendingIntent pi = PendingIntent.getActivity(this, reqCode, intent,
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
 
         NotificationManager nm = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
         if (nm != null) {
             boolean isLock = "lock".equalsIgnoreCase(actionType);
             boolean isEnroll = "enroll".equalsIgnoreCase(actionType);
+            nm.cancel(ALERT_NOTIFICATION_ID);
             Notification alert = new NotificationCompat.Builder(this, ALERT_CHANNEL_ID)
                     .setContentTitle(isEnroll ? "Locker fingerprint setup" : (isLock ? "Locker Lock Request" : "Locker Security Request"))
                     .setContentText(isEnroll ? "Tap and touch the sensor to link your fingerprint" : ((isLock ? "Tap to confirm lock: " : "Tap to approve: ") + target))
@@ -543,6 +616,8 @@ public class CompanionListenerService extends Service {
                     .setCategory(NotificationCompat.CATEGORY_MESSAGE)
                     .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
                     .setDefaults(Notification.DEFAULT_ALL)
+                    .setOnlyAlertOnce(false)
+                    .setWhen(System.currentTimeMillis())
                     .setContentIntent(pi)
                     .setFullScreenIntent(pi, true)
                     .setTimeoutAfter(60000) // the PC only waits ~60s anyway

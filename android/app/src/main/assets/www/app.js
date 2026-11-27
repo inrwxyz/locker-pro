@@ -6,7 +6,9 @@
 const AppState = {
   pairedPC: null, // { name, ip, pairedAt } (secret stays in native Android Keystore/SharedPreferences)
   vibrateEnabled: true,
-  pendingAuthTarget: null
+  pendingAuthTarget: null,
+  pendingActionType: 'unlock',
+  pendingNeedsReprompt: false
 };
 
 // Initialize on Load
@@ -123,6 +125,14 @@ function setupDashboardActions() {
         if (raw && raw !== 'null') AppState.pairedPC = JSON.parse(raw);
       } catch (_) {}
     }
+
+    const pendingNative = window.Android?.getPendingAuthFromNative?.() || '';
+    if (AppState.pendingNeedsReprompt && !pendingNative && window.Android?.requestPcReprompt && AppState.pairedPC) {
+      showToast('Re-syncing unlock request with PC...');
+      window.Android.requestPcReprompt(AppState.pairedPC.ip, 58820, '_onRepromptResult');
+      return;
+    }
+
     const target = AppState.pendingAuthTarget || 'Protected Item';
     const actionType = AppState.pendingActionType || 'unlock';
     const isLock = actionType === 'lock';
@@ -168,7 +178,36 @@ window.onPingResult = function(success, data, error) {
 // NOTE: the PC no longer sends the shared secret in a ping reply (that let anyone on the Wi-Fi steal it).
 // The secret is only handed over once, during PIN pairing. If this phone lost it, it has to pair again.
 window._onStartupAutoCheck = function(success, data, error) {
-  // nothing to sync: the native side keeps the stored secret and refreshes the PC name/IP itself
+  window._onResumeSync(success, data, error);
+};
+
+window._onResumeSync = function(success, data, error) {
+  const nativePending = window.Android?.getPendingAuthFromNative?.() || '';
+  if (nativePending) {
+    try {
+      const p = JSON.parse(nativePending);
+      if (p?.target) {
+        window.handleIncomingAuthPrompt(p.target, p.actionType || 'unlock', false);
+        return;
+      }
+    } catch (_) {}
+  }
+
+  if (!success || !data) return;
+  try {
+    const parsed = JSON.parse(data);
+    if (parsed && parsed.pendingTarget) {
+      window.handleIncomingAuthPrompt(parsed.pendingTarget, parsed.pendingAction || 'unlock', true);
+    } else if (AppState.pendingNeedsReprompt) {
+      window.hideIncomingAuthBanner();
+    }
+  } catch (_) {}
+};
+
+window._onRepromptResult = function(success, data, error) {
+  if (!success) {
+    showToast('Could not reach PC: ' + (error || 'Ensure PC prompt is open'));
+  }
 };
 
 // Biometric Prompt Trigger
@@ -188,9 +227,10 @@ function triggerBiometric(title, subtitle, callback) {
 }
 
 // Incoming Auth Prompts from PC
-window.handleIncomingAuthPrompt = function(target, actionType) {
+window.handleIncomingAuthPrompt = function(target, actionType, needsReprompt) {
   AppState.pendingAuthTarget = target;
   AppState.pendingActionType = actionType || 'unlock';
+  AppState.pendingNeedsReprompt = !!needsReprompt;
   const banner = document.getElementById('incoming-auth-card');
   const title = document.getElementById('incoming-target-title');
   const isLock = AppState.pendingActionType === 'lock';
@@ -204,6 +244,7 @@ window.hideIncomingAuthBanner = function() {
   const banner = document.getElementById('incoming-auth-card');
   if (banner) banner.classList.add('hidden');
   AppState.pendingAuthTarget = null;
+  AppState.pendingNeedsReprompt = false;
 };
 
 // Helper: Save Paired PC Metadata (never persists pairing secret in localStorage)

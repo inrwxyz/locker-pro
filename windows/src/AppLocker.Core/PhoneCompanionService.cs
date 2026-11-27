@@ -34,6 +34,8 @@ public static class PhoneCompanionService
     private static Action<PairedPhoneInfo>? _onPairedCallback;
     public static event Action<string, string>? OnBiometricApproved;
     public static event Action? OnPhoneUnpaired;
+    public static Func<(string Target, string ActionType)?>? PendingPromptProvider { get; set; }
+    public static Action<string>? OnRepromptRequested { get; set; }
     public static string LastAuthType { get; set; } = "fingerprint";
     public static string LastVaultToken { get; set; } = "";
 
@@ -372,6 +374,7 @@ public static class PhoneCompanionService
                 else if (action == "ping") await HandlePingAsync(client, root, writer);
                 else if (action == "biometric_approved") await HandleApprovedAsync(client, root, writer);
                 else if (action == "unpair") await HandleUnpairAsync(root, writer);
+                else if (action == "reprompt") await HandleRepromptAsync(client, root, writer);
             }
             catch { }
         }
@@ -479,6 +482,7 @@ public static class PhoneCompanionService
             }
         }
 
+        var pending = authed ? PendingPromptProvider?.Invoke() : null;
         await Reply(writer, new
         {
             status = "pong",
@@ -486,7 +490,9 @@ public static class PhoneCompanionService
             paired = paired != null,
             authenticated = authed,
             phoneName = authed ? paired!.DeviceName : null,
-            islandConnected = authed ? InexIslandBridge.IsRunning() : (bool?)null
+            islandConnected = authed ? InexIslandBridge.IsRunning() : (bool?)null,
+            pendingTarget = pending?.Target,
+            pendingAction = pending?.ActionType
         }, 200);
         try { client.Client.Shutdown(SocketShutdown.Both); } catch { }
     }
@@ -562,6 +568,49 @@ public static class PhoneCompanionService
         await Reply(writer, new { status = "unpaired" });
     }
 
+    private static async Task HandleRepromptAsync(TcpClient client, JsonElement root, StreamWriter writer)
+    {
+        var remoteAddr = (client.Client.RemoteEndPoint as IPEndPoint)?.Address;
+        if (!PassesSameWiFiPolicy(remoteAddr))
+        {
+            await Reply(writer, new { status = "wrong_wifi" });
+            return;
+        }
+
+        var settings = LockerSettings.Load();
+        var paired = settings.PairedPhone;
+        if (paired == null)
+        {
+            await Reply(writer, new { status = "not_paired" });
+            return;
+        }
+
+        string nonce = Str(root, "nonce", "", 64);
+        string tsText = Str(root, "ts", "", 20);
+        string mac = Str(root, "mac", "", 128);
+
+        bool ok = PhoneAuth.IsValidNonce(nonce)
+            && long.TryParse(tsText, out long ts)
+            && PhoneAuth.Verify(paired.SharedSecretKey, mac, "reprompt", tsText, nonce)
+            && PhoneAuth.CheckFreshAndRemember(nonce, ts);
+
+        if (!ok)
+        {
+            await Reply(writer, new { status = "unauthorized" });
+            return;
+        }
+
+        string remoteIp = RemoteIp(client);
+        if (!string.IsNullOrEmpty(remoteIp) && remoteIp != "127.0.0.1" && paired.LastIpAddress != remoteIp)
+        {
+            paired.LastIpAddress = remoteIp;
+            LockerSettings.Save(settings);
+        }
+
+        OnRepromptRequested?.Invoke(remoteIp);
+        await Reply(writer, new { status = "ok" });
+    }
+
     public static async Task NotifyUnpairToPhoneAsync(string phoneIp, string secret)
     {
         if (string.IsNullOrWhiteSpace(phoneIp) || string.IsNullOrEmpty(secret)) return;
@@ -627,8 +676,63 @@ public static class PhoneCompanionService
     // client side (PC -> phone)
     // ---------------------------------------------------------------------------------------
 
+    // Connect to phone companion port with one fast transient retry so Wi-Fi wakeups don't stall for 15s.
+    private static async Task<TcpClient> ConnectPhoneWithRetryAsync(string phoneIp, CancellationToken ct)
+    {
+        for (int attempt = 0; ; attempt++)
+        {
+            ct.ThrowIfCancellationRequested();
+            var client = new TcpClient();
+            try
+            {
+                using var connectCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                connectCts.CancelAfter(3500);
+                await client.ConnectAsync(phoneIp, PhonePort, connectCts.Token);
+                return client;
+            }
+            catch when (attempt == 0 && !ct.IsCancellationRequested)
+            {
+                client.Dispose();
+                await Task.Delay(200, ct);
+            }
+            catch
+            {
+                client.Dispose();
+                throw;
+            }
+        }
+    }
+
+    private static async Task SendAuthCancelAsync(string phoneIp, string secret, string nonce)
+    {
+        if (string.IsNullOrWhiteSpace(phoneIp) || string.IsNullOrEmpty(secret) || string.IsNullOrEmpty(nonce))
+            return;
+        try
+        {
+            using var client = new TcpClient();
+            using var cts = new CancellationTokenSource(1800);
+            await client.ConnectAsync(phoneIp, PhonePort, cts.Token);
+            using var stream = client.GetStream();
+            using var writer = new StreamWriter(stream, Utf8NoBom) { AutoFlush = true };
+            var req = new
+            {
+                action = "auth_cancel",
+                nonce = nonce,
+                mac = PhoneAuth.Sign(secret, "auth_cancel", nonce)
+            };
+            await writer.WriteLineAsync(JsonSerializer.Serialize(req));
+            await writer.FlushAsync();
+        }
+        catch { }
+    }
+
     // Phone er sathe Biometric request pathano
-    public static async Task<bool> RequestBiometricAuthAsync(string target, bool isLock = false, int timeoutMs = 12000, string vaultId = "")
+    public static async Task<bool> RequestBiometricAuthAsync(
+        string target,
+        bool isLock = false,
+        int timeoutMs = 45000,
+        string vaultId = "",
+        CancellationToken ct = default)
     {
         var settings = LockerSettings.Load();
         if (!settings.PhoneBiometricsEnabled || settings.PairedPhone == null)
@@ -647,11 +751,10 @@ public static class PhoneCompanionService
 
         try
         {
-            using var client = new TcpClient();
-            using var cts = new CancellationTokenSource(timeoutMs);
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            cts.CancelAfter(timeoutMs);
 
-            // Connect to companion app on phone (Phone app listens on port 58821)
-            await client.ConnectAsync(phoneIp, PhonePort, cts.Token);
+            using var client = await ConnectPhoneWithRetryAsync(phoneIp, cts.Token);
             using var stream = client.GetStream();
             using var writer = new StreamWriter(stream, Utf8NoBom) { AutoFlush = true };
             using var reader = new StreamReader(stream, Utf8NoBom);
@@ -694,7 +797,8 @@ public static class PhoneCompanionService
         }
         catch
         {
-            // Phone reachable na hole fallback to password
+            if (ct.IsCancellationRequested)
+                _ = SendAuthCancelAsync(phoneIp, secret, nonce);
         }
         finally
         {
@@ -752,7 +856,12 @@ public static class PhoneCompanionService
         catch { return null; }
     }
 
-    private static async Task<PhoneReply> SendPhoneRequestAsync(string target, string actionType, string wrappedB64, int timeoutMs)
+    private static async Task<PhoneReply> SendPhoneRequestAsync(
+        string target,
+        string actionType,
+        string wrappedB64,
+        int timeoutMs,
+        CancellationToken ct = default)
     {
         var reply = new PhoneReply();
         var settings = LockerSettings.Load();
@@ -768,9 +877,10 @@ public static class PhoneCompanionService
 
         try
         {
-            using var client = new TcpClient();
-            using var cts = new CancellationTokenSource(timeoutMs);
-            await client.ConnectAsync(phoneIp, PhonePort, cts.Token);
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            cts.CancelAfter(timeoutMs);
+
+            using var client = await ConnectPhoneWithRetryAsync(phoneIp, cts.Token);
             using var stream = client.GetStream();
             using var writer = new StreamWriter(stream, Utf8NoBom) { AutoFlush = true };
             using var reader = new StreamReader(stream, Utf8NoBom);
@@ -837,6 +947,20 @@ public static class PhoneCompanionService
             }
             return reply;
         }
+        catch (OperationCanceledException)
+        {
+            if (ct.IsCancellationRequested)
+            {
+                _ = SendAuthCancelAsync(phoneIp, secret, nonce);
+                reply.Reason = "canceled";
+            }
+            else
+            {
+                _ = SendAuthCancelAsync(phoneIp, secret, nonce);
+                reply.Reason = "timeout";
+            }
+            return reply;
+        }
         catch
         {
             reply.Reason = "unreachable";
@@ -849,7 +973,11 @@ public static class PhoneCompanionService
     }
 
     // Fingerprint on the phone -> master key. Null Key = fall back to the password.
-    public static async Task<VaultKeyResult> RequestVaultKeyAsync(string target, bool isLock, int timeoutMs = 15000)
+    public static async Task<VaultKeyResult> RequestVaultKeyAsync(
+        string target,
+        bool isLock,
+        int timeoutMs = 45000,
+        CancellationToken ct = default)
     {
         var res = new VaultKeyResult();
         var vault = MasterConfig.LoadBiometricVaultV2();
@@ -860,7 +988,7 @@ public static class PhoneCompanionService
             return res;
         }
 
-        var r = await SendPhoneRequestAsync(target, isLock ? "lock" : "unlock", vault.Wrapped, timeoutMs);
+        var r = await SendPhoneRequestAsync(target, isLock ? "lock" : "unlock", vault.Wrapped, timeoutMs, ct);
         res.Reason = r.Reason;
         res.AuthType = r.AuthType;
 
@@ -932,15 +1060,15 @@ public static class PhoneCompanionService
         catch { }
     }
 
-    public static async Task<bool> RequestBiometricUnlockAsync(string target, int timeoutMs = 12000)
+    public static async Task<bool> RequestBiometricUnlockAsync(string target, int timeoutMs = 45000, CancellationToken ct = default)
     {
         if (MasterConfig.HasBiometricVaultV2())
         {
-            var r = await RequestVaultKeyAsync(target, false, timeoutMs);
+            var r = await RequestVaultKeyAsync(target, false, timeoutMs, ct);
             if (r.Key == null) return false;
             CryptographicOperations.ZeroMemory(r.Key);
             return true;
         }
-        return await RequestBiometricAuthAsync(target, isLock: false, timeoutMs);
+        return await RequestBiometricAuthAsync(target, isLock: false, timeoutMs, ct: ct);
     }
 }

@@ -108,6 +108,10 @@
                 <TextBlock x:Name="Status" Text="Enter password" Foreground="{StaticResource Soft}" FontSize="12"
                            HorizontalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap"
                            MaxWidth="280" Margin="0,0,0,2"/>
+                <Button x:Name="RetryPhoneBtn" Content="Retry phone prompt" Visibility="Collapsed"
+                        HorizontalAlignment="Center" Margin="0,6,0,0" Padding="10,3" Height="24"
+                        FontSize="11" Foreground="#E5E5E5" Background="#161616"
+                        Style="{StaticResource PlainButton}" Click="RetryPhoneBtn_Click"/>
 
                 <!-- Live encryption/decryption progress -->
                 <StackPanel x:Name="ProgressPanel" Margin="0,10,0,0" Visibility="Collapsed">

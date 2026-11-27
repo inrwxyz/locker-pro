@@ -75,6 +75,7 @@ public static class Crypto
         finally
         {
             Array.Clear(buffer, 0, DefaultChunkSize);
+            Array.Clear(cipher, 0, DefaultChunkSize);
             ArrayPool<byte>.Shared.Return(buffer);
             ArrayPool<byte>.Shared.Return(cipher);
         }

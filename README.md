@@ -1,6 +1,6 @@
 # Locker Pro
 
-**Version 2.1.0** · MIT License
+**Version 2.1.1** · MIT License
 
 A simple, local-first folder and app locker for Windows, with an optional Android companion app for quick fingerprint unlocking over local Wi-Fi.  
 Everything stays on your PC and local network — no cloud, no account, and no telemetry.
@@ -32,7 +32,7 @@ Everything stays on your PC and local network — no cloud, no account, and no t
 
 ## Download
 
-Get the Windows installer (`Locker-Setup.exe`) and the Android companion (`.apk`) from the [Releases](https://github.com/inrwxyz/locker-pro/releases) page.
+Get the Windows installer (`Locker-Setup.exe`) and the Android companion (`Locker-Companion.apk`) from the [Releases](https://github.com/inrwxyz/locker-pro/releases) page.
 
 ---
 

@@ -31,12 +31,59 @@ public class GuardHost
         new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, DateTime> _sealRetryAfter =
         new(StringComparer.OrdinalIgnoreCase);
+    private readonly object _promptGate = new();
+    private GuardPopup? _activePromptPopup;
+    private string _activePromptTarget = "";
+    private string _activePromptAction = "unlock";
 
     private bool HasOpen => _session != null && _session.OpenFolders.Count > 0;
+
+    private void RegisterActivePrompt(GuardPopup popup, string target, bool isLock)
+    {
+        lock (_promptGate)
+        {
+            _activePromptPopup = popup;
+            _activePromptTarget = Path.GetFileName((target ?? "").TrimEnd('\\'));
+            if (string.IsNullOrEmpty(_activePromptTarget)) _activePromptTarget = target ?? "Protected Resource";
+            _activePromptAction = isLock ? "lock" : "unlock";
+        }
+    }
+
+    private void ClearActivePrompt(GuardPopup? popup)
+    {
+        lock (_promptGate)
+        {
+            if (popup == null || ReferenceEquals(_activePromptPopup, popup))
+            {
+                _activePromptPopup = null;
+                _activePromptTarget = "";
+                _activePromptAction = "unlock";
+            }
+        }
+    }
 
     public void Start()
     {
         foreach (var f in LockRegistry.List()) EnsureWatcher(f);
+
+        PhoneCompanionService.PendingPromptProvider = () =>
+        {
+            lock (_promptGate)
+            {
+                if (_activePromptPopup == null || string.IsNullOrEmpty(_activePromptTarget)) return null;
+                return (_activePromptTarget, _activePromptAction);
+            }
+        };
+        PhoneCompanionService.OnRepromptRequested = _ =>
+        {
+            GuardPopup? popup;
+            lock (_promptGate) popup = _activePromptPopup;
+            if (popup != null)
+            {
+                try { Application.Current.Dispatcher.InvokeAsync(() => popup.RetryPhoneAuth()); }
+                catch { }
+            }
+        };
 
         _explorer = new ExplorerWatcher(
             LockedFolderFor,
@@ -56,6 +103,9 @@ public class GuardHost
 
     public void Stop()
     {
+        PhoneCompanionService.PendingPromptProvider = null;
+        PhoneCompanionService.OnRepromptRequested = null;
+        ClearActivePrompt(null);
         _explorer?.Stop();
         _apps?.Dispose();
         foreach (var c in _chips.Values.ToList())
@@ -248,7 +298,9 @@ public class GuardHost
         {
             win = new GuardPopup(path, isLock: true) { Topmost = true };
             win.SetPrompt("Lock", "Enter password to lock", isLock: true);
+            RegisterActivePrompt(win, path, isLock: true);
             byte[]? key = await win.AskAsync();
+            ClearActivePrompt(win);
             if (key == null) return;
 
             win.ShowBusy("Locking...");
@@ -273,6 +325,7 @@ public class GuardHost
         }
         finally
         {
+            ClearActivePrompt(win);
             _busy = false;
         }
     }
@@ -287,7 +340,9 @@ public class GuardHost
             EnsureWatcher(folder);
 
             win = new GuardPopup(folder) { Topmost = true };
+            RegisterActivePrompt(win, folder, isLock: false);
             byte[]? key = await win.AskAsync();
+            ClearActivePrompt(win);
             if (key == null)
             {
                 _explorer?.Cancel(folder);
@@ -357,6 +412,7 @@ public class GuardHost
         }
         finally
         {
+            ClearActivePrompt(win);
             if (!restored)
             {
                 _explorer?.Cancel(folder);
@@ -479,7 +535,9 @@ public class GuardHost
         try
         {
             win = new GuardPopup(exePath) { Topmost = true };
+            RegisterActivePrompt(win, Path.GetFileNameWithoutExtension(exePath), isLock: false);
             byte[]? key = await win.AskAsync();
+            ClearActivePrompt(win);
             if (key == null) return false;
 
             Array.Clear(key);
@@ -499,6 +557,7 @@ public class GuardHost
         }
         finally
         {
+            ClearActivePrompt(win);
             _busy = false;
         }
     }

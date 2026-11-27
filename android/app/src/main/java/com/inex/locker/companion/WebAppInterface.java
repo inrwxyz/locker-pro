@@ -58,6 +58,50 @@ public class WebAppInterface {
     }
 
     @JavascriptInterface
+    public String getPendingAuthFromNative() {
+        return CompanionListenerService.getPendingAuthJson();
+    }
+
+    @JavascriptInterface
+    public void requestPcReprompt(String pcIp, int port, String callbackFn) {
+        new Thread(() -> {
+            Socket socket = null;
+            try {
+                String secret = PhoneAuth.loadSecret(mActivity);
+                String targetIp = (pcIp != null && !pcIp.isEmpty())
+                        ? pcIp
+                        : mActivity.getSharedPreferences("locker_companion", Context.MODE_PRIVATE).getString("pc_ip", "");
+                if (targetIp == null || targetIp.isEmpty() || secret.isEmpty()) {
+                    deliverResult(callbackFn, false, null, "Not paired");
+                    return;
+                }
+                socket = new Socket();
+                socket.connect(new InetSocketAddress(targetIp, port > 0 ? port : 58820), 3500);
+                socket.setSoTimeout(3500);
+                PrintWriter writer = new PrintWriter(new OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8), true);
+                BufferedReader reader = new BufferedReader(new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8));
+                String ts = String.valueOf(System.currentTimeMillis() / 1000L);
+                String nonce = PhoneAuth.newNonce();
+                JSONObject req = new JSONObject();
+                req.put("action", "reprompt");
+                req.put("ts", ts);
+                req.put("nonce", nonce);
+                req.put("mac", PhoneAuth.sign(secret, "reprompt", ts, nonce));
+                writer.println(req.toString());
+                writer.flush();
+                String resp = reader.readLine();
+                deliverResult(callbackFn, true, resp, null);
+            } catch (Exception e) {
+                deliverResult(callbackFn, false, null, e.getMessage());
+            } finally {
+                if (socket != null) {
+                    try { socket.close(); } catch (Exception ignored) {}
+                }
+            }
+        }).start();
+    }
+
+    @JavascriptInterface
     public void sendBiometricApproval(String pcIp, int port, String secret, String target, String authType) {
         // No-op. Approvals are only sent via CompanionListenerService.completePendingAuth.
     }
